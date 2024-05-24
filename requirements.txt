@@ -1,10 +1,4 @@
-aiofiles
 aiogram
-aiohttp
-cachetools
-pillow
-pydantic
-pytonconnect
+aiogram-tonconnect
 pytoniq-core
-qrcode-styled
 redis

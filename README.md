@@ -1,79 +1,54 @@
-# 📦 aiogram TON Connect UI
+## 🤖 aiogram TON Connect Bot
 
 [![TON](https://img.shields.io/badge/TON-grey?logo=TON&logoColor=40AEF0)](https://ton.org)
-[![PyPI](https://img.shields.io/pypi/v/aiogram-tonconnect.svg?color=FFE873&labelColor=3776AB)](https://pypi.python.org/pypi/aiogram-tonconnect)
-![Python Versions](https://img.shields.io/badge/Python-3.8%20--%203.12-black?color=FFE873&labelColor=3776AB)
+[![Telegram Bot](https://img.shields.io/badge/Bot-grey?logo=telegram)](https://core.telegram.org/bots)
+[![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![License](https://img.shields.io/github/license/nessshon/aiogram-tonconnect)](https://github.com/nessshon/aiogram-tonconnect/blob/main/LICENSE)
+[![Redis](https://img.shields.io/badge/Redis-Yes?logo=redis&color=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-blue?logo=docker&logoColor=white)](https://www.docker.com/)
 
+This Telegram bot, built using the aiogram-tonconnect library, serves as an example to demonstrate the integration of
+Ton Connect in Telegram bots based on the Aiogram framework. The bot provides a user interface for seamless interaction
+with Ton Connect features.
 
-<img src="https://telegra.ph//file/9e28473c8da8989fdf027.jpg">
-
-![Downloads](https://pepy.tech/badge/aiogram-tonconnect)
-![Downloads](https://pepy.tech/badge/aiogram-tonconnect/month)
-![Downloads](https://pepy.tech/badge/aiogram-tonconnect/week)
-
-**Aiogram TON Connect UI** is a middleware library that streamlines the integration
-of [TON Connect](https://github.com/ton-connect) technology into Telegram bots based
-on [aiogram](https://github.com/aiogram/). It offers a pre-built user interface and orchestrates the interaction flow
-for connecting wallets and initiating transactions. The library takes care of all user interactions with TON Connect
-within the bot, encompassing the presentation of QR codes, texts, and keyboards, along with the handling of timeouts and
-user cancellations.
-
-Check out the [documentation](https://nessshon.github.io/aiogram-tonconnect/).\
-Bot example [@aiogramTONConnectBot](https://t.me/aiogramTONConnectBot/).
+Bot example: [@aiogramTONConnectBot](https://t.me/aiogramTONConnectBot)
 
 ## Installation
 
-```bach
-pip install aiogram-tonconnect
-```
+1. Clone the repository:
 
-## Features
+    ```bash
+    git clone https://github.com/nessshon/aiogram-tonconnect.git
+    ```
 
-* Ready-to-Use User Interface
-* Middleware Functionality
-* Interface Customization
-* Multilingual Support
-* QR Code Generation
+2. Change into the bot directory:
 
-## Screenshots
+    ```bash
+    cd aiogram-tonconnect/example
+    ```
+3. Clone environment variables file:
 
-|                                                                                                                      |                                                                                                                      |                                                                                                                      |
-|----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| [![Image 1](https://telegra.ph//file/555175fd35c05370a64d4.jpg)](https://telegra.ph//file/555175fd35c05370a64d4.jpg) | [![Image 2](https://telegra.ph//file/ef770d825534cf049c1bb.jpg)](https://telegra.ph//file/ef770d825534cf049c1bb.jpg) | [![Image 3](https://telegra.ph//file/502a80771bc07acc6e93b.jpg)](https://telegra.ph//file/502a80771bc07acc6e93b.jpg) |
-| [![Image 4](https://telegra.ph//file/99443226ba404a86586ad.jpg)](https://telegra.ph//file/99443226ba404a86586ad.jpg) | [![Image 5](https://telegra.ph//file/74fba6fca9c273d5f6f30.jpg)](https://telegra.ph//file/74fba6fca9c273d5f6f30.jpg) | [![Image 6](https://telegra.ph//file/656593c298123fea6be60.jpg)](https://telegra.ph//file/656593c298123fea6be60.jpg) |
+   ```bash
+   cp .env.example .env
+   ```
 
-## Acknowledgments
+4. Configure [environment variables](#environment-variables-reference) variables file:
 
-This project utilizes the following dependencies to enhance its functionality:
+   ```bash
+   nano .env
+   ```
 
-- [**aiogram:**](https://pypi.org/project/aiogram/) An asynchronous framework for building Telegram bots.
-- [**pytonconnect:**](https://pypi.org/project/pytonconnect/) Python SDK for TON Connect 2.0.
-- [**pytoniq-core:**](https://pypi.org/project/pytoniq-core/) TON Blockchain primitives.
-- [**qrcode-fastapi:**](https://github.com/nessshon/qrcode-fastapi) Generate QR codes with optional image inclusion,
-  supports base64-encoded.
-- and more...
+5. Running a bot in a docker container:
 
-We extend our gratitude to the maintainers and contributors of these libraries for their valuable contributions to the
-open-source community.
+   ```bash
+   docker-compose up --build
+   ```
 
-## Contribution
+## Environment Variables Reference
 
-We welcome your contributions! If you have ideas for improvement or have identified a bug, please create an issue or
-submit a pull request.
+Here is a reference guide for the environment variables used in the project:
 
-## Support
-
-Supported by [TON Society](https://github.com/ton-society/grants-and-bounties), Grants and Bounties program.
-
-## Donations
-
-**TON** - `EQC-3ilVr-W0Uc3pLrGJElwSaFxvhXXfkiQA3EwdVBHNNess`
-
-**USDT** (TRC-20) - `TJjADKFT2i7jqNJAxkgeRm5o9uarcoLUeR`
-
-## License
-
-This repository is distributed under
-the [MIT License](https://github.com/nessshon/aiogram-tonconnect/blob/main/LICENSE). Feel free to use, modify, and
-distribute the code in accordance with the terms of the license.
+| Variable  | Description                                                   | Example                               |
+|-----------|---------------------------------------------------------------|---------------------------------------|
+| BOT_TOKEN | Bot token, obtained from [@BotFather](https://t.me/BotFather) | 1234567890:QWERTYUIOPASDFGHJKLZXCVBNM | 
+| REDIS_DSN | Redis DSN - Connection string for the Redis server            | redis://redis:6379/0                  |
