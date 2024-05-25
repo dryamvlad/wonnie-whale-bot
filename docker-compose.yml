@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   bot_wwb:
-    build: .
+    image: ghcr.io/dryamvlad/wonnie-whale-bot:main
     container_name: "wonnie_whale_bot"
     restart: on-failure
     env_file:
