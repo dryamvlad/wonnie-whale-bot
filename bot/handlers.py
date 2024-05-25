@@ -5,8 +5,13 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
+from pytonapi import Tonapi
+
 from aiogram_tonconnect import ATCManager
-from aiogram_tonconnect.tonconnect.models import ConnectWalletCallbacks, SendTransactionCallbacks
+from aiogram_tonconnect.tonconnect.models import (
+    ConnectWalletCallbacks,
+    SendTransactionCallbacks,
+)
 from aiogram_tonconnect.tonconnect.transactions import TONTransferTransaction
 
 from .windows import (
@@ -33,7 +38,16 @@ async def start_command(message: Message, atc_manager: ATCManager) -> None:
     :return: None
     """
     # Calling up the language selection window
-    await select_language_window(message.from_user, atc_manager)
+    # await select_language_window(message.from_user, atc_manager)
+    await atc_manager.update_interfaces_language("ru")
+
+    callbacks = ConnectWalletCallbacks(
+        before_callback=select_language_window,
+        after_callback=main_menu_window,
+    )
+    # Open the connect wallet window using the ATCManager instance
+    # and the specified callbacks
+    await atc_manager.connect_wallet(callbacks, check_proof=True)
 
 
 @router.callback_query(UserState.select_language)
@@ -99,7 +113,9 @@ async def main_menu_handler(call: CallbackQuery, atc_manager: ATCManager) -> Non
 
 
 @router.callback_query(UserState.send_amount_ton)
-async def send_amount_ton_handler(call: CallbackQuery, atc_manager: ATCManager, **data) -> None:
+async def send_amount_ton_handler(
+    call: CallbackQuery, atc_manager: ATCManager, **data
+) -> None:
     """
     Handler for the send amount TON callback.
 
@@ -117,7 +133,9 @@ async def send_amount_ton_handler(call: CallbackQuery, atc_manager: ATCManager, 
 
 
 @router.message(UserState.send_amount_ton)
-async def send_amount_ton_message_handler(message: Message, atc_manager: ATCManager) -> None:
+async def send_amount_ton_message_handler(
+    message: Message, atc_manager: ATCManager
+) -> None:
     """
     Handler for sending the TON amount.
 
@@ -130,7 +148,7 @@ async def send_amount_ton_message_handler(message: Message, atc_manager: ATCMana
         # Validate the entered amount as a float
         def validate_amount(amount: str) -> Union[float, None]:
             try:
-                amount = float(amount.replace(',', '.'))
+                amount = float(amount.replace(",", "."))
             except ValueError:
                 return None
             return amount
@@ -142,7 +160,7 @@ async def send_amount_ton_message_handler(message: Message, atc_manager: ATCMana
             transaction = TONTransferTransaction(
                 address=atc_manager.user.account_wallet.address.to_userfriendly(),
                 amount=amount_ton,
-                comment="Hello from @aiogramTONConnectBot!"
+                comment="Hello from @aiogramTONConnectBot!",
             )
             # Set up callbacks for the transaction
             callbacks = SendTransactionCallbacks(
@@ -160,7 +178,9 @@ async def send_amount_ton_message_handler(message: Message, atc_manager: ATCMana
 
 
 @router.callback_query(UserState.transaction_info)
-async def transaction_info_handler(call: CallbackQuery, atc_manager: ATCManager, **data) -> None:
+async def transaction_info_handler(
+    call: CallbackQuery, atc_manager: ATCManager, **data
+) -> None:
     """
     Handler for the transaction information callback.
 

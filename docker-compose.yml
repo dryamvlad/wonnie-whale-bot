@@ -1,19 +1,18 @@
 version: "3"
 
 services:
-
-  bot:
+  bot_wwb:
     build: .
-    container_name: "sending-transaction_bot"
+    container_name: "wonnie_whale_bot"
     restart: on-failure
     env_file:
       - .env
     depends_on:
-      - redis
+      - redis_wwb
     volumes:
       - .:/usr/src/bot
 
-  redis:
+  redis_wwb:
     image: redis:alpine
     restart: always
     volumes:

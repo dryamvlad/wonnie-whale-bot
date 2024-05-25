@@ -1,14 +1,19 @@
 import os
 
 from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_tonconnect.handlers import AiogramTonConnectHandlers
 from aiogram_tonconnect.middleware import AiogramTonConnectMiddleware
-from aiogram_tonconnect.tonconnect.storage.base import ATCRedisStorage
+from aiogram_tonconnect.tonconnect.storage.base import ATCMemoryStorage
 from aiogram_tonconnect.utils.qrcode import QRUrlProvider
 
 from .handlers import router
 from .throttling import ThrottlingMiddleware
+
+from .TonApiMiddleware import TonApiMiddleware
+
+# TonApi key
+TON_API_KEY = "testt"  # noqa
 
 # Your bot token
 BOT_TOKEN = "1234567890:QWERTYUIOPASDFGHJKLZXCVBNM"
@@ -17,7 +22,7 @@ BOT_TOKEN = "1234567890:QWERTYUIOPASDFGHJKLZXCVBNM"
 REDIS_DSN = "redis://localhost:6379/0"
 
 # Link to your created manifest.json
-MANIFEST_URL = "https://raw.githubusercontent.com/nessshon/aiogram-tonconnect/main/tonconnect-manifest.json"
+MANIFEST_URL = "https://raw.githubusercontent.com/dryamvlad/wonnie-whale-bot/main/tonconnect-manifest.json"
 
 # List of wallets to exclude
 # Example:
@@ -27,7 +32,8 @@ EXCLUDE_WALLETS = []
 
 async def main():
     # Initializing the storage for FSM (Finite State Machine)
-    storage = RedisStorage.from_url(os.environ.get("REDIS_DSN", REDIS_DSN))
+    # storage = RedisStorage.from_url(os.environ.get("REDIS_DSN", REDIS_DSN))
+    storage = MemoryStorage()
 
     # Creating a bot object with the token and HTML parsing mode
     bot = Bot(os.environ.get("BOT_TOKEN", BOT_TOKEN), parse_mode="HTML")
@@ -36,10 +42,14 @@ async def main():
     dp = Dispatcher(storage=storage)
 
     dp.update.middleware.register(ThrottlingMiddleware())
+    dp.update.middleware.register(
+        TonApiMiddleware(api_key=os.environ.get("TON_API_KEY", TON_API_KEY))
+    )
     # Registering middleware for TON Connect processing
     dp.update.middleware.register(
         AiogramTonConnectMiddleware(
-            storage=ATCRedisStorage(storage.redis),
+            # storage=ATCRedisStorage(storage.redis),
+            storage=ATCMemoryStorage(),
             manifest_url=MANIFEST_URL,
             exclude_wallets=EXCLUDE_WALLETS,
             qrcode_provider=QRUrlProvider(),
@@ -56,7 +66,7 @@ async def main():
     await dp.start_polling(bot)
 
 
-if __name__ == '__main__':
+if __name__ == "bot.__main__" or __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
