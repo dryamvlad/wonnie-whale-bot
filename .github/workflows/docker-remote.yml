@@ -73,6 +73,6 @@ jobs:
           echo "${{ secrets.DO_KEY }}" > ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DO_HOST }} > ~/.ssh/known_hosts
       - name: SSH remote pull
-        run: ssh root@${{ secrets.DO_HOST }} 'cd /root/jgf && sh deploy.sh'
+        run: ssh root@${{ secrets.DO_HOST }} 'cd /root/wonnie/wwb && sh deploy.sh'
       - name: SSH cleanup
         run: rm -rf ~/.ssh
