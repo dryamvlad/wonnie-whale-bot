@@ -12,6 +12,8 @@ from .throttling import ThrottlingMiddleware
 
 from .TonApiMiddleware import TonApiMiddleware
 
+from bot.config import settings
+
 # TonApi key
 TON_API_KEY = "testt"  # noqa
 
@@ -36,15 +38,13 @@ async def main():
     storage = MemoryStorage()
 
     # Creating a bot object with the token and HTML parsing mode
-    bot = Bot(os.environ.get("BOT_TOKEN", BOT_TOKEN), parse_mode="HTML")
+    bot = Bot(settings.BOT_TOKEN, parse_mode="HTML")
 
     # Creating a dispatcher object using the specified storage
     dp = Dispatcher(storage=storage)
 
     dp.update.middleware.register(ThrottlingMiddleware())
-    dp.update.middleware.register(
-        TonApiMiddleware(api_key=os.environ.get("TON_API_KEY", TON_API_KEY))
-    )
+    dp.update.middleware.register(TonApiMiddleware(api_key=settings.TON_API_KEY))
     # Registering middleware for TON Connect processing
     dp.update.middleware.register(
         AiogramTonConnectMiddleware(

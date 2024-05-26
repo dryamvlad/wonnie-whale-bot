@@ -7,6 +7,12 @@ from aiogram.utils import markdown
 from aiogram_tonconnect import ATCManager
 from aiogram_tonconnect.tonconnect.models import AccountWallet, AppWallet
 
+from bot.db.schemas.schema_users import UserSchema, UserSchemaAdd
+from bot.db.services.service_users import UsersService
+from bot.db.utils.unitofwork import UnitOfWork
+
+from bot.config import Settings
+
 from pytonapi import Tonapi
 
 from pytoniq_core import Address
@@ -59,6 +65,8 @@ async def main_menu_window(
     app_wallet: AppWallet,
     account_wallet: AccountWallet,
     ton_api: Tonapi,
+    uow: UnitOfWork,
+    settings: Settings,
     **_,
 ) -> None:
     """
@@ -76,9 +84,9 @@ async def main_menu_window(
     bot = _["bots"][0]
     user_chat = _["event_context"].chat
 
-    won_addr = "EQBYLdLsOvSVdC2ZN19M4DPZpMwjupb9bgMgBeNic3aV4kwK"
-    treshold_balance = 142500
-    group_chat_id = -1002236398187
+    won_addr = settings.WON_ADDR
+    treshold_balance = settings.THRESHOLD_BALANCE
+    group_chat_id = settings.CHAT_ID
     existing_member = await bot.get_chat_member(
         chat_id=group_chat_id, user_id=user_chat.id
     )
@@ -99,6 +107,17 @@ async def main_menu_window(
                 chat_id=group_chat_id, name=invite_link_name, member_limit=1
             )
             invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+            user_id = await UsersService().add_user(
+                uow=uow,
+                user=UserSchemaAdd(
+                    username=user_chat.username,
+                    chat_id=user_chat.id,
+                    balance=won_balance,
+                    blacklisted=False,
+                    banned=False,
+                    invite_link=invite_link.invite_link,
+                ),
+            )
             break
 
     text = (

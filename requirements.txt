@@ -3,3 +3,8 @@ aiogram-tonconnect
 pytoniq-core
 redis
 pytonapi
+sqlalchemy
+pydantic-settings
+asyncpg
+greenlet
+alembic

@@ -2,6 +2,9 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from typing import Callable, Dict, Any, Awaitable
 
+from bot.db.utils.unitofwork import UnitOfWork
+from bot.config import settings
+
 from pytonapi import Tonapi
 
 
@@ -16,4 +19,6 @@ class TonApiMiddleware(BaseMiddleware):
         data: Dict[str, Any],
     ) -> Any:
         data["ton_api"] = self.ton_api
+        data["uow"] = UnitOfWork()
+        data["settings"] = settings
         return await handler(event, data)
