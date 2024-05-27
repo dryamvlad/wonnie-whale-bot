@@ -116,6 +116,7 @@ async def main_menu_window(
                     blacklisted=False,
                     banned=False,
                     invite_link=invite_link.invite_link,
+                    wallet=account_wallet.address,
                 ),
             )
             break
