@@ -8,7 +8,7 @@ from bot.config import settings
 from pytonapi import Tonapi
 
 
-class TonApiMiddleware(BaseMiddleware):
+class UtilMiddleware(BaseMiddleware):
     def __init__(self, api_key: str) -> None:
         self.ton_api = Tonapi(api_key)
 

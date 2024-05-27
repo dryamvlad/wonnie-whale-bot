@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     REDIS_DSN: str
     TON_API_KEY: str
 
+    MANIFEST_URL: str
+
     class Config:
         env_file = env_file
         env_prefix = "DEBUG_" if "--debug" in sys.argv else ""

@@ -1,5 +1,3 @@
-import os
-
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_tonconnect.handlers import AiogramTonConnectHandlers
@@ -10,21 +8,9 @@ from aiogram_tonconnect.utils.qrcode import QRUrlProvider
 from .handlers import router
 from .throttling import ThrottlingMiddleware
 
-from .TonApiMiddleware import TonApiMiddleware
+from .util_middleware import UtilMiddleware
 
 from bot.config import settings
-
-# TonApi key
-TON_API_KEY = "testt"  # noqa
-
-# Your bot token
-BOT_TOKEN = "1234567890:QWERTYUIOPASDFGHJKLZXCVBNM"
-
-# Redis address
-REDIS_DSN = "redis://localhost:6379/0"
-
-# Link to your created manifest.json
-MANIFEST_URL = "https://raw.githubusercontent.com/dryamvlad/wonnie-whale-bot/main/tonconnect-manifest.json"
 
 # List of wallets to exclude
 # Example:
@@ -44,13 +30,13 @@ async def main():
     dp = Dispatcher(storage=storage)
 
     dp.update.middleware.register(ThrottlingMiddleware())
-    dp.update.middleware.register(TonApiMiddleware(api_key=settings.TON_API_KEY))
+    dp.update.middleware.register(UtilMiddleware(api_key=settings.TON_API_KEY))
     # Registering middleware for TON Connect processing
     dp.update.middleware.register(
         AiogramTonConnectMiddleware(
             # storage=ATCRedisStorage(storage.redis),
             storage=ATCMemoryStorage(),
-            manifest_url=MANIFEST_URL,
+            manifest_url=settings.MANIFEST_URL,
             exclude_wallets=EXCLUDE_WALLETS,
             qrcode_provider=QRUrlProvider(),
         )

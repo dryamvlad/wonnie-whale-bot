@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir --upgrade pip &&  \
 
 COPY . .
 
-CMD ["sh", "-c", "cd /usr/src/bot && python -m bot"]
+CMD ["sh", "-c", "cd /usr/src/bot && alembic upgrade head && python -m bot"]
