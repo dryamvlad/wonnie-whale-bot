@@ -17,6 +17,7 @@ from aiogram_tonconnect.tonconnect.transactions import TONTransferTransaction
 from .windows import (
     UserState,
     main_menu_window,
+    empty_window,
     select_language_window,
     send_amount_ton_window,
     transaction_info_windows,
@@ -42,7 +43,7 @@ async def start_command(message: Message, atc_manager: ATCManager) -> None:
     await atc_manager.update_interfaces_language("ru")
 
     callbacks = ConnectWalletCallbacks(
-        before_callback=select_language_window,
+        before_callback=empty_window,
         after_callback=main_menu_window,
     )
     # Open the connect wallet window using the ATCManager instance

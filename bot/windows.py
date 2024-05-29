@@ -32,6 +32,10 @@ class UserState(StatesGroup):
     transaction_info = State()
 
 
+async def empty_window(event_from_user: User, atc_manager: ATCManager, **_) -> None:
+    pass
+
+
 async def select_language_window(
     event_from_user: User, atc_manager: ATCManager, **_
 ) -> None:
