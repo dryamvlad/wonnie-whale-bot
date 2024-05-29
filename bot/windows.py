@@ -102,6 +102,7 @@ async def main_menu_window(
 
     invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {settings.THRESHOLD_BALANCE}\n\n"
 
+    wallet = Address(account_wallet.address.hex_address).to_str()
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
     elif won_balance >= settings.THRESHOLD_BALANCE:
@@ -121,7 +122,7 @@ async def main_menu_window(
                     entry_balance=won_balance,
                     banned=False,
                     invite_link=invite_link.invite_link,
-                    wallet=account_wallet.address,
+                    wallet=wallet,
                     tg_user_id=user_chat.id,
                 ),
             )
@@ -134,7 +135,7 @@ async def main_menu_window(
                 user_id=user.id,
                 balance_delta=0,
                 price=-1.0,
-                wallet=account_wallet.address,
+                wallet=wallet,
             )
             await UsersService().edit_user(
                 uow=uow, user_id=user.id, user=user, history_entry=history_entry
@@ -142,7 +143,7 @@ async def main_menu_window(
 
     text = (
         f"Подключенный кошелек {app_wallet.name}:\n\n"
-        f"{markdown.hcode(account_wallet.address)}\n\n"
+        f"{markdown.hcode(wallet)}\n\n"
         f"Баланс: {won_balance} WON\n\n"
         f"{invite_link_text}"
     )
