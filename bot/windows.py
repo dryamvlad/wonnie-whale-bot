@@ -89,15 +89,6 @@ async def main_menu_window(
     :return: None
     """
 
-    won_balance = await ton_api_helper.get_jetton_balance(
-        account_wallet.address, settings.WON_ADDR
-    )
-
-    if isinstance(won_balance, int):
-        print(
-            f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
-        )
-
     bot: Bot = _["bots"][0]
     user_chat = _["event_context"].chat
 
@@ -108,6 +99,14 @@ async def main_menu_window(
     invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {settings.THRESHOLD_BALANCE}\n\n"
 
     wallet = Address(account_wallet.address.hex_address).to_str()
+    won_balance = await ton_api_helper.get_jetton_balance(
+        account_wallet.address, settings.WON_ADDR
+    )
+    if isinstance(won_balance, int):
+        print(
+            f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
+        )
+
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
     elif isinstance(won_balance, int) and won_balance >= settings.THRESHOLD_BALANCE:
