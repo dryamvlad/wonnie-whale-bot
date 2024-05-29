@@ -1,5 +1,6 @@
 aiogram
 aiogram-tonconnect
+pytoniq
 pytoniq-core
 redis
 pytonapi
@@ -8,3 +9,6 @@ pydantic-settings
 asyncpg
 greenlet
 alembic
+aiocron
+black
+dedust

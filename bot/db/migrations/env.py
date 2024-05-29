@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -8,8 +9,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from bot.config import settings
 
-from db.db import Base
-from db.models.model_users import UsersORM
+from bot.db.db import Base
+from bot.db.models.model_users import UsersORM
+from bot.db.models.model_history import HistoryORM
 
 config = context.config
 

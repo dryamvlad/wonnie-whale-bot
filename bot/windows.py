@@ -1,3 +1,4 @@
+from aiogram import Bot
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import User, ChatMemberMember
 from aiogram.types import InlineKeyboardButton as Button
@@ -7,7 +8,10 @@ from aiogram.utils import markdown
 from aiogram_tonconnect import ATCManager
 from aiogram_tonconnect.tonconnect.models import AccountWallet, AppWallet
 
+from sqlalchemy.exc import IntegrityError
+
 from bot.db.schemas.schema_users import UserSchema, UserSchemaAdd
+from bot.db.schemas.schema_history import HistorySchemaAdd
 from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
 
@@ -16,6 +20,8 @@ from bot.config import Settings
 from pytonapi import Tonapi
 
 from pytoniq_core import Address
+
+from bot.util_middleware import TonApiHelper
 
 
 # Define a state group for the user with two states
@@ -64,7 +70,7 @@ async def main_menu_window(
     atc_manager: ATCManager,
     app_wallet: AppWallet,
     account_wallet: AccountWallet,
-    ton_api: Tonapi,
+    ton_api_helper: TonApiHelper,
     uow: UnitOfWork,
     settings: Settings,
     **_,
@@ -79,56 +85,59 @@ async def main_menu_window(
     :return: None
     """
 
-    jettons_balances = ton_api.accounts.get_jettons_balances(account_wallet.address)
-
-    bot = _["bots"][0]
-    user_chat = _["event_context"].chat
-
-    won_addr = settings.WON_ADDR
-    treshold_balance = settings.THRESHOLD_BALANCE
-    group_chat_id = settings.CHAT_ID
-    existing_member = await bot.get_chat_member(
-        chat_id=group_chat_id, user_id=user_chat.id
+    won_balance = await ton_api_helper.get_jetton_balance(
+        account_wallet.address, settings.WON_ADDR
     )
 
-    won_balance = 0
-    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {treshold_balance}\n\n"
+    bot: Bot = _["bots"][0]
+    user_chat = _["event_context"].chat
 
-    for balance in jettons_balances.balances:
-        jetton_addr = Address(balance.jetton.address()).to_str()
-        jetton_balance = int(balance.balance) / (10**balance.jetton.decimals)
-        if isinstance(existing_member, ChatMemberMember):
-            invite_link_text = "Вы уже вступили в чат\n\n"
-            break
-        if jetton_addr == won_addr and jetton_balance >= treshold_balance:
-            invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
-            won_balance = jetton_balance
-            invite_link = await bot.create_chat_invite_link(
-                chat_id=group_chat_id, name=invite_link_name, member_limit=1
-            )
-            invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+    existing_member = await bot.get_chat_member(
+        chat_id=settings.CHAT_ID, user_id=user_chat.id
+    )
+
+    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {settings.THRESHOLD_BALANCE}\n\n"
+
+    if isinstance(existing_member, ChatMemberMember):
+        invite_link_text = "Вы уже вступили в чат\n\n"
+    else:
+        invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
+        invite_link = await bot.create_chat_invite_link(
+            chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
+        )
+        invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+
+        try:
             user_id = await UsersService().add_user(
                 uow=uow,
                 user=UserSchemaAdd(
                     username=user_chat.username,
-                    chat_id=user_chat.id,
                     balance=won_balance,
                     blacklisted=False,
+                    entry_balance=won_balance,
                     banned=False,
                     invite_link=invite_link.invite_link,
-                    wallet=account_wallet.address,
+                    wallet=app_wallet.name,
+                    tg_user_id=user_chat.id,
                 ),
             )
-            break
+        except IntegrityError:
+            user = await UsersService().get_user_by_tg_id(
+                uow=uow, tg_user_id=user_chat.id
+            )
+            user.wallet = app_wallet.name
+            history_entry = HistorySchemaAdd(
+                user_id=user.id, balance_delta=0, price=-1.0, wallet=wallet
+            )
+            await UsersService().edit_user(
+                uow=uow, user_id=user.id, user=user, history_entry=history_entry
+            )
 
     text = (
         f"Подключенный кошелек {app_wallet.name}:\n\n"
         f"{markdown.hcode(account_wallet.address)}\n\n"
         f"Баланс: {won_balance} WON\n\n"
         f"{invite_link_text}"
-        if atc_manager.user.language_code == "ru"
-        else f"Connected wallet {app_wallet.name}:\n\n"
-        f"{markdown.hcode(account_wallet.address)}"
     )
 
     # Create inline keyboard with disconnect option

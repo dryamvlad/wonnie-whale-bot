@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 from dotenv import find_dotenv, load_dotenv
 
 # Check if we're in debug mode
-env_file = ".env.debug" if "--debug" in sys.argv else ".env"
+env_file = ".env.debug" if "dev_environment" in sys.argv else ".env"
 
 load_dotenv(find_dotenv(env_file))
 
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = env_file
-        env_prefix = "DEBUG_" if "--debug" in sys.argv else ""
+        env_prefix = "DEBUG_" if "dev_environment" in sys.argv else ""
 
     @property
     def DATABASE_URL_asyncpg(self):

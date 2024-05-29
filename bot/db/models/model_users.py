@@ -10,12 +10,17 @@ class UsersORM(Base):
 
     id: Mapped[intpk]
     username: Mapped[Optional[str]]
-    chat_id = mapped_column(BigInteger, unique=True)
+    tg_user_id = mapped_column(BigInteger, unique=True)
     balance: Mapped[int]
+    entry_balance: Mapped[int]
     blacklisted: Mapped[bool] = mapped_column(Boolean, default=False)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     invite_link: Mapped[Optional[str]]
     wallet: Mapped[str]
+
+    history: Mapped[list["HistoryORM"]] = relationship(
+        back_populates="user",
+    )
 
     created_at: Mapped[created_at]
     updated_at: Mapped[updated_at]

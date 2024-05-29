@@ -3,11 +3,13 @@ from typing import Type
 
 from bot.db.db import async_session_maker
 from bot.db.repositories.repo_users import UsersRepository
+from bot.db.repositories.repo_history import HistoryRepository
 
 
 # https://github1s.com/cosmicpython/code/tree/chapter_06_uow
 class IUnitOfWork(ABC):
     users: Type[UsersRepository]
+    history: Type[HistoryRepository]
 
     @abstractmethod
     def __init__(self): ...
@@ -33,6 +35,7 @@ class UnitOfWork:
         self.session = self.session_factory()
 
         self.users = UsersRepository(self.session)
+        self.history = HistoryRepository(self.session)
 
     async def __aexit__(self, *args):
         await self.rollback()
