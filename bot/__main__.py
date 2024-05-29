@@ -38,8 +38,6 @@ async def task_update_users(
     while True:
         try:
             price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
-            # price = 0.014
-            print(f"WON PRICE: ${price}")
             break
         except LiteServerError:
             await asyncio.sleep(1)
@@ -163,9 +161,9 @@ async def main():
 
     dp.include_router(router)
 
-    # Schedule task_update_users to run every 10 seconds
+    # Schedule task_update_users to run every 59 seconds
     aiocron.crontab(
-        "* * * * * */3",
+        "* * * * * */59",
         func=task_update_users,
         args=(bot, uow, ton_api_helper, dedust_helper),
         start=True,
