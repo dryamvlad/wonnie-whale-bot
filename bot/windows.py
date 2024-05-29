@@ -121,7 +121,7 @@ async def main_menu_window(
                     entry_balance=won_balance,
                     banned=False,
                     invite_link=invite_link.invite_link,
-                    wallet=app_wallet.name,
+                    wallet=account_wallet.address,
                     tg_user_id=user_chat.id,
                 ),
             )
@@ -129,9 +129,12 @@ async def main_menu_window(
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
-            user.wallet = app_wallet.name
+            user.wallet = account_wallet.address
             history_entry = HistorySchemaAdd(
-                user_id=user.id, balance_delta=0, price=-1.0, wallet=app_wallet.name
+                user_id=user.id,
+                balance_delta=0,
+                price=-1.0,
+                wallet=account_wallet.address,
             )
             await UsersService().edit_user(
                 uow=uow, user_id=user.id, user=user, history_entry=history_entry
