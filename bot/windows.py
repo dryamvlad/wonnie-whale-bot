@@ -104,7 +104,7 @@ async def main_menu_window(
 
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
-    else:
+    elif won_balance >= settings.THRESHOLD_BALANCE:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         invite_link = await bot.create_chat_invite_link(
             chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
@@ -131,7 +131,7 @@ async def main_menu_window(
             )
             user.wallet = app_wallet.name
             history_entry = HistorySchemaAdd(
-                user_id=user.id, balance_delta=0, price=-1.0, wallet=wallet
+                user_id=user.id, balance_delta=0, price=-1.0, wallet=app_wallet.name
             )
             await UsersService().edit_user(
                 uow=uow, user_id=user.id, user=user, history_entry=history_entry
