@@ -27,7 +27,7 @@ from bot.db.schemas.schema_history import HistorySchemaAdd
 # List of wallets to exclude
 EXCLUDE_WALLETS = []
 
-print("BOT STARTED!")
+print("-----BOT STARTED-----")
 
 
 async def task_update_users(
@@ -48,6 +48,8 @@ async def task_update_users(
         won_balance = await ton_api_helper.get_jetton_balance(
             user.wallet, settings.WON_ADDR
         )
+        if not won_balance:
+            continue
         balance_delta = won_balance - user.balance
 
         history_entry = HistorySchemaAdd(
@@ -119,59 +121,62 @@ async def task_update_users(
 
 
 async def main():
-    provider = LiteBalancer.from_mainnet_config(1)
-    await provider.start_up()
+    try:
+        provider = LiteBalancer.from_mainnet_config(1)
+        await provider.start_up()
 
-    logging.basicConfig(
-        level=logging.ERROR,
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    storage = MemoryStorage()
-
-    bot = Bot(settings.BOT_TOKEN, parse_mode="HTML")
-    uow = UnitOfWork()
-    ton_api = Tonapi(settings.TON_API_KEY)
-    ton_api_helper = TonApiHelper(ton_api=ton_api)
-    dedust_helper = DeDustHelper(provider=provider)
-
-    dp = Dispatcher(storage=storage)
-
-    dp.update.middleware.register(ThrottlingMiddleware())
-    dp.update.middleware.register(
-        UtilMiddleware(
-            ton_api_helper=ton_api_helper,
-            dedust_helper=dedust_helper,
-            uow=uow,
-            settings=settings,
+        logging.basicConfig(
+            level=logging.ERROR,
+            format="%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
-    )
 
-    dp.update.middleware.register(
-        AiogramTonConnectMiddleware(
-            storage=ATCMemoryStorage(),
-            manifest_url=settings.MANIFEST_URL,
-            exclude_wallets=EXCLUDE_WALLETS,
-            qrcode_provider=QRUrlProvider(),
+        storage = MemoryStorage()
+
+        bot = Bot(settings.BOT_TOKEN, parse_mode="HTML")
+        uow = UnitOfWork()
+        ton_api = Tonapi(settings.TON_API_KEY)
+        ton_api_helper = TonApiHelper(ton_api=ton_api)
+        dedust_helper = DeDustHelper(provider=provider)
+
+        dp = Dispatcher(storage=storage)
+
+        dp.update.middleware.register(ThrottlingMiddleware())
+        dp.update.middleware.register(
+            UtilMiddleware(
+                ton_api_helper=ton_api_helper,
+                dedust_helper=dedust_helper,
+                uow=uow,
+                settings=settings,
+            )
         )
-    )
 
-    AiogramTonConnectHandlers().register(dp)
+        dp.update.middleware.register(
+            AiogramTonConnectMiddleware(
+                storage=ATCMemoryStorage(),
+                manifest_url=settings.MANIFEST_URL,
+                exclude_wallets=EXCLUDE_WALLETS,
+                qrcode_provider=QRUrlProvider(),
+            )
+        )
 
-    dp.include_router(router)
+        AiogramTonConnectHandlers().register(dp)
 
-    # Schedule task_update_users to run every 59 seconds
-    aiocron.crontab(
-        "* * * * * */59",
-        func=task_update_users,
-        args=(bot, uow, ton_api_helper, dedust_helper),
-        start=True,
-    )
+        dp.include_router(router)
 
-    await dp.start_polling(bot)
+        # Schedule task_update_users to run every 59 seconds
+        aiocron.crontab(
+            "* * * * * */59",
+            func=task_update_users,
+            args=(bot, uow, ton_api_helper, dedust_helper),
+            start=True,
+        )
 
-    await provider.close_all()
+        await dp.start_polling(bot)
+
+        await provider.close_all()
+    except ConnectionError:
+        pass
 
 
 if __name__ == "__main__" or __name__ == "bot.__main__":

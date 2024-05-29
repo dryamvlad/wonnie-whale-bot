@@ -93,6 +93,11 @@ async def main_menu_window(
         account_wallet.address, settings.WON_ADDR
     )
 
+    if isinstance(won_balance, int):
+        print(
+            f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
+        )
+
     bot: Bot = _["bots"][0]
     user_chat = _["event_context"].chat
 
@@ -105,7 +110,7 @@ async def main_menu_window(
     wallet = Address(account_wallet.address.hex_address).to_str()
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
-    elif won_balance >= settings.THRESHOLD_BALANCE:
+    elif isinstance(won_balance, int) and won_balance >= settings.THRESHOLD_BALANCE:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         invite_link = await bot.create_chat_invite_link(
             chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
