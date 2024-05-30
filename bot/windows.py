@@ -130,7 +130,7 @@ async def main_menu_window(
                     tg_user_id=user_chat.id,
                 ),
             )
-        except IntegrityError:
+        except IntegrityError:  # User is already in the database
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )

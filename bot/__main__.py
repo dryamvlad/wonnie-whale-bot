@@ -2,12 +2,15 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.utils import markdown
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_tonconnect.handlers import AiogramTonConnectHandlers
 from aiogram_tonconnect.middleware import AiogramTonConnectMiddleware
 from aiogram_tonconnect.tonconnect.storage.base import ATCMemoryStorage
 from aiogram_tonconnect.utils.qrcode import QRUrlProvider
+
+from aiohttp.client_exceptions import ClientPayloadError
+from asyncio.exceptions import IncompleteReadError
 
 from pytonapi import Tonapi
 from pytoniq import LiteBalancer
@@ -177,6 +180,14 @@ async def main():
         await provider.close_all()
     except ConnectionError:
         pass
+    except ClientPayloadError:
+        pass
+    except IncompleteReadError:
+        pass
+    except TelegramBadRequest as e:
+        logging.error(f"TelegramBadRequest: {e.message}")
+    except TelegramForbiddenError as e:
+        logging.error(f"TelegramForbiddenError: {e.message}")
 
 
 if __name__ == "__main__" or __name__ == "bot.__main__":
