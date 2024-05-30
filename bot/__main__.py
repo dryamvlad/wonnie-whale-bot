@@ -1,7 +1,9 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
+from aiogram.client.bot import DefaultBotProperties
 from aiogram.utils import markdown
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_tonconnect.handlers import AiogramTonConnectHandlers
@@ -124,73 +126,75 @@ async def task_update_users(
 
 
 async def main():
+    provider = LiteBalancer.from_mainnet_config(1)
+    await provider.start_up()
+
+    logging.basicConfig(
+        level=logging.ERROR,
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    storage = MemoryStorage()
+
+    bot = Bot(
+        settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    uow = UnitOfWork()
+    ton_api = Tonapi(settings.TON_API_KEY)
+    ton_api_helper = TonApiHelper(ton_api=ton_api)
+    dedust_helper = DeDustHelper(provider=provider)
+
+    dp = Dispatcher(storage=storage)
+
+    dp.update.middleware.register(ThrottlingMiddleware())
+    dp.update.middleware.register(
+        UtilMiddleware(
+            ton_api_helper=ton_api_helper,
+            dedust_helper=dedust_helper,
+            uow=uow,
+            settings=settings,
+        )
+    )
+
+    dp.update.middleware.register(
+        AiogramTonConnectMiddleware(
+            storage=ATCMemoryStorage(),
+            manifest_url=settings.MANIFEST_URL,
+            exclude_wallets=EXCLUDE_WALLETS,
+            qrcode_provider=QRUrlProvider(),
+        )
+    )
+
+    AiogramTonConnectHandlers().register(dp)
+
+    dp.include_router(router)
+
+    # Schedule task_update_users to run every 59 seconds
+    aiocron.crontab(
+        "* * * * * */59",
+        func=task_update_users,
+        args=(bot, uow, ton_api_helper, dedust_helper),
+        start=True,
+    )
+
+    await dp.start_polling(bot)
+
+    await provider.close_all()
+
+
+if __name__ == "__main__" or __name__ == "bot.__main__":
     try:
-        provider = LiteBalancer.from_mainnet_config(1)
-        await provider.start_up()
-
-        logging.basicConfig(
-            level=logging.ERROR,
-            format="%(asctime)s %(levelname)s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-
-        storage = MemoryStorage()
-
-        bot = Bot(settings.BOT_TOKEN, parse_mode="HTML")
-        uow = UnitOfWork()
-        ton_api = Tonapi(settings.TON_API_KEY)
-        ton_api_helper = TonApiHelper(ton_api=ton_api)
-        dedust_helper = DeDustHelper(provider=provider)
-
-        dp = Dispatcher(storage=storage)
-
-        dp.update.middleware.register(ThrottlingMiddleware())
-        dp.update.middleware.register(
-            UtilMiddleware(
-                ton_api_helper=ton_api_helper,
-                dedust_helper=dedust_helper,
-                uow=uow,
-                settings=settings,
-            )
-        )
-
-        dp.update.middleware.register(
-            AiogramTonConnectMiddleware(
-                storage=ATCMemoryStorage(),
-                manifest_url=settings.MANIFEST_URL,
-                exclude_wallets=EXCLUDE_WALLETS,
-                qrcode_provider=QRUrlProvider(),
-            )
-        )
-
-        AiogramTonConnectHandlers().register(dp)
-
-        dp.include_router(router)
-
-        # Schedule task_update_users to run every 59 seconds
-        aiocron.crontab(
-            "* * * * * */59",
-            func=task_update_users,
-            args=(bot, uow, ton_api_helper, dedust_helper),
-            start=True,
-        )
-
-        await dp.start_polling(bot)
-
-        await provider.close_all()
+        loop = asyncio.get_event_loop()
+        loop.create_task(main())
+        loop.run_forever()
     except ConnectionError:
         pass
     except ClientPayloadError:
         pass
-    except IncompleteReadError:
+    except asyncio.exceptions.IncompleteReadError:
         pass
     except TelegramBadRequest as e:
         logging.error(f"TelegramBadRequest: {e.message}")
     except TelegramForbiddenError as e:
         logging.error(f"TelegramForbiddenError: {e.message}")
-
-
-if __name__ == "__main__" or __name__ == "bot.__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    loop.run_forever()
