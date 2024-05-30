@@ -198,3 +198,5 @@ if __name__ == "__main__" or __name__ == "bot.__main__":
         logging.error(f"TelegramBadRequest: {e.message}")
     except TelegramForbiddenError as e:
         logging.error(f"TelegramForbiddenError: {e.message}")
+    except asyncio.exceptions.TimeoutError as e:
+        logging.error("TimeoutError")
