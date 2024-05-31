@@ -43,9 +43,7 @@ async def task_update_users(
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
 
-        price = await dedust_helper.get_jetton_price(
-            settings.WON_ADDR, settings.WON_LP_ADDR
-        )
+        price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
             won_lp_balance = await ton_api_helper.get_jetton_balance(
