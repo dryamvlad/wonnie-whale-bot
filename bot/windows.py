@@ -105,7 +105,7 @@ async def main_menu_window(
         account_wallet.address, settings.WON_ADDR
     )
     won_lp_balance = await ton_api_helper.get_jetton_balance(
-        user.wallet, settings.WON_LP_ADDR
+        wallet, settings.WON_LP_ADDR
     )
     if won_balance:
         won_balance = (won_balance + won_lp_balance) if won_lp_balance else won_balance
