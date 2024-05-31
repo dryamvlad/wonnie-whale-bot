@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from aiogram import Bot
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import User, ChatMemberMember
@@ -14,14 +16,13 @@ from bot.db.schemas.schema_users import UserSchema, UserSchemaAdd
 from bot.db.schemas.schema_history import HistorySchemaAdd
 from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
+from bot.keyboards import kb_buy_won
 
 from bot.config import Settings
 
-from pytonapi import Tonapi
-
 from pytoniq_core import Address
 
-from bot.util_middleware import TonApiHelper
+from bot.util_middleware import TonApiHelper, DeDustHelper
 
 
 # Define a state group for the user with two states
@@ -77,6 +78,7 @@ async def main_menu_window(
     ton_api_helper: TonApiHelper,
     uow: UnitOfWork,
     settings: Settings,
+    dedust_helper: DeDustHelper,
     **_,
 ) -> None:
     """
@@ -96,7 +98,7 @@ async def main_menu_window(
         chat_id=settings.CHAT_ID, user_id=user_chat.id
     )
 
-    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {settings.THRESHOLD_BALANCE}\n\n"
+    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {markdown.hcode(settings.THRESHOLD_BALANCE)}\n\n"
 
     wallet = Address(account_wallet.address.hex_address).to_str()
     won_balance = await ton_api_helper.get_jetton_balance(
@@ -157,15 +159,11 @@ async def main_menu_window(
     disconnect_text = (
         "Отключиться" if atc_manager.user.language_code == "ru" else "Disconnect"
     )
-    reply_markup = Markup(
-        inline_keyboard=[
-            # [Button(text=send_amount_ton_text, callback_data="send_amount_ton")],
-            [Button(text=disconnect_text, callback_data="disconnect")],
-        ]
-    )
+    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
+    kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
 
     # Sending the message and updating user state
-    await atc_manager._send_message(text, reply_markup=reply_markup)
+    await atc_manager._send_message(text, reply_markup=kb)
     await atc_manager.state.set_state(UserState.main_menu)
 
 

@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from typing import Callable, Dict, Any, Awaitable
@@ -8,6 +10,7 @@ from bot.config import Settings
 from pytonapi import Tonapi
 from pytoniq_core import Address
 from pytoniq import LiteBalancer
+from pytoniq.liteclient import LiteServerError
 
 from dedust import Asset, Factory, PoolType
 
@@ -40,13 +43,18 @@ class DeDustHelper:
         pool = await Factory.get_pool(
             pool_type=PoolType.VOLATILE, assets=[TON, WON], provider=self.provider
         )
-
-        price = (
-            await pool.get_estimated_swap_out(
-                asset_in=WON, amount_in=int(1 * 1e9), provider=self.provider
-            )
-        )["amount_out"]
-        return price / 1e9
+        while True:
+            try:
+                price = (
+                    await pool.get_estimated_swap_out(
+                        asset_in=WON, amount_in=int(1 * 1e9), provider=self.provider
+                    )
+                )["amount_out"]
+                return price / 1e9
+            except LiteServerError:
+                await asyncio.sleep(1)
+                logging.warning("Restarting dedust get price on LiteServerError")
+                continue
 
 
 class UtilMiddleware(BaseMiddleware):

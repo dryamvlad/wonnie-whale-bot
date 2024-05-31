@@ -28,6 +28,7 @@ from bot.db.utils.unitofwork import UnitOfWork
 from bot.db.services.service_users import UsersService
 from bot.db.schemas.schema_users import UserSchema
 from bot.db.schemas.schema_history import HistorySchemaAdd
+from bot.keyboards import kb_buy_won
 
 # List of wallets to exclude
 EXCLUDE_WALLETS = []
@@ -40,14 +41,8 @@ async def task_update_users(
 ):
     users: list[UserSchema] = await UsersService().get_users(uow=uow)
     counter = 0
-    while True:
-        try:
-            price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
-            break
-        except LiteServerError:
-            await asyncio.sleep(1)
-            logging.warning("Restarting dedust get price on LiteServerError")
-            continue
+
+    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
     for user in users:
         won_balance = await ton_api_helper.get_jetton_balance(
@@ -83,11 +78,14 @@ async def task_update_users(
                 pass
 
             message_text = (
-                f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n"
+                f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
                 f"Убрали вас из чата.\n\n"
                 f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(settings.THRESHOLD_BALANCE))} WON"
             )
-            await bot.send_message(chat_id=user.tg_user_id, text=message_text)
+            reply_markup = await kb_buy_won(settings=settings, price=price)
+            await bot.send_message(
+                chat_id=user.tg_user_id, text=message_text, reply_markup=reply_markup
+            )
             break
         elif user.banned and won_balance >= settings.THRESHOLD_BALANCE:
             print(
