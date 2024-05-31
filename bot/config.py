@@ -16,12 +16,15 @@ class Settings(BaseSettings):
     DB_NAME: str
 
     WON_ADDR: str
+    WON_LP_ADDR: str
     CHAT_ID: int
     THRESHOLD_BALANCE: int
 
     BOT_TOKEN: str
     REDIS_DSN: str
     TON_API_KEY: str
+
+    REFRESH_TIMEOUT: int
 
     MANIFEST_URL: str
 

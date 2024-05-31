@@ -104,14 +104,18 @@ async def main_menu_window(
     won_balance = await ton_api_helper.get_jetton_balance(
         account_wallet.address, settings.WON_ADDR
     )
-    if isinstance(won_balance, int):
+    won_lp_balance = await ton_api_helper.get_jetton_balance(
+        user.wallet, settings.WON_LP_ADDR
+    )
+    if won_balance:
+        won_balance = (won_balance + won_lp_balance) if won_lp_balance else won_balance
         print(
             f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
         )
 
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
-    elif isinstance(won_balance, int) and won_balance >= settings.THRESHOLD_BALANCE:
+    elif won_balance and won_balance >= settings.THRESHOLD_BALANCE:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         invite_link = await bot.create_chat_invite_link(
             chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
@@ -159,7 +163,9 @@ async def main_menu_window(
     disconnect_text = (
         "Отключиться" if atc_manager.user.language_code == "ru" else "Disconnect"
     )
-    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
+    price = await dedust_helper.get_jetton_price(
+        settings.WON_ADDR, settings.WON_LP_ADDR
+    )
     kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
 
     # Sending the message and updating user state

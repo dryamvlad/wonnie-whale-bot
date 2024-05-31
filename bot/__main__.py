@@ -39,88 +39,106 @@ print("-----BOT STARTED-----")
 async def task_update_users(
     bot: Bot, uow: UnitOfWork, ton_api_helper: TonApiHelper, dedust_helper: DeDustHelper
 ):
-    users: list[UserSchema] = await UsersService().get_users(uow=uow)
-    counter = 0
+    try:
+        users: list[UserSchema] = await UsersService().get_users(uow=uow)
+        counter = 0
 
-    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
-
-    for user in users:
-        won_balance = await ton_api_helper.get_jetton_balance(
-            user.wallet, settings.WON_ADDR
-        )
-        if not won_balance:
-            continue
-        balance_delta = won_balance - user.balance
-
-        history_entry = HistorySchemaAdd(
-            user_id=user.id,
-            balance_delta=balance_delta,
-            price=price,
-            wallet=user.wallet,
+        price = await dedust_helper.get_jetton_price(
+            settings.WON_ADDR, settings.WON_LP_ADDR
         )
 
-        if won_balance < settings.THRESHOLD_BALANCE and not user.banned:
-            print(
-                f"--- User with id {user.id} and wallet {user.wallet} has low balance"
+        for user in users:
+            won_lp_balance = await ton_api_helper.get_jetton_balance(
+                user.wallet, settings.WON_LP_ADDR
             )
-            user.banned = True
-            user.balance = won_balance
-            await UsersService().edit_user(
-                uow=uow, user_id=user.id, user=user, history_entry=history_entry
+            won_balance = await ton_api_helper.get_jetton_balance(
+                user.wallet, settings.WON_ADDR
             )
 
-            try:
-                await bot.ban_chat_member(
-                    chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+            if not won_balance:
+                continue
+
+            won_balance = (
+                won_balance + won_lp_balance if won_lp_balance else won_balance
+            )
+
+            balance_delta = won_balance - user.balance
+
+            history_entry = HistorySchemaAdd(
+                user_id=user.id,
+                balance_delta=balance_delta,
+                price=price,
+                wallet=user.wallet,
+            )
+
+            if won_balance < settings.THRESHOLD_BALANCE and not user.banned:
+                print(
+                    f"--- User with id {user.id} and wallet {user.wallet} has low balance"
                 )
-                await bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
-            except TelegramBadRequest:
-                pass
+                user.banned = True
+                user.balance = won_balance
+                await UsersService().edit_user(
+                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                )
 
-            message_text = (
-                f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
-                f"Убрали вас из чата.\n\n"
-                f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(settings.THRESHOLD_BALANCE))} WON"
-            )
-            reply_markup = await kb_buy_won(settings=settings, price=price)
-            await bot.send_message(
-                chat_id=user.tg_user_id, text=message_text, reply_markup=reply_markup
-            )
-            break
-        elif user.banned and won_balance >= settings.THRESHOLD_BALANCE:
-            print(
-                f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
-            )
+                try:
+                    await bot.ban_chat_member(
+                        chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+                    )
+                    await bot.revoke_chat_invite_link(
+                        settings.CHAT_ID, user.invite_link
+                    )
+                except TelegramBadRequest:
+                    pass
 
-            invite_link = await bot.create_chat_invite_link(
-                chat_id=settings.CHAT_ID, name=user.username, member_limit=1
-            )
+                message_text = (
+                    f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
+                    f"Убрали вас из чата.\n\n"
+                    f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(settings.THRESHOLD_BALANCE))} WON"
+                )
+                reply_markup = await kb_buy_won(settings=settings, price=price)
+                await bot.send_message(
+                    chat_id=user.tg_user_id,
+                    text=message_text,
+                    reply_markup=reply_markup,
+                )
+                break
+            elif user.banned and won_balance >= settings.THRESHOLD_BALANCE:
+                print(
+                    f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
+                )
 
-            message_text = (
-                f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в чат!\n\n"
-                f"Ссылка для вступления: {invite_link.invite_link}"
-            )
-            await bot.send_message(chat_id=user.tg_user_id, text=message_text)
+                invite_link = await bot.create_chat_invite_link(
+                    chat_id=settings.CHAT_ID, name=user.username, member_limit=1
+                )
 
-            user.banned = False
-            user.balance = won_balance
-            user.invite_link = invite_link.invite_link
-            await UsersService().edit_user(
-                uow=uow, user_id=user.id, user=user, history_entry=history_entry
-            )
-            break
-        elif won_balance != user.balance:
-            print(
-                f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
-            )
-            user.balance = won_balance
-            await UsersService().edit_user(
-                uow=uow, user_id=user.id, user=user, history_entry=history_entry
-            )
+                message_text = (
+                    f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в чат!\n\n"
+                    f"Ссылка для вступления: {invite_link.invite_link}"
+                )
+                await bot.send_message(chat_id=user.tg_user_id, text=message_text)
 
-        counter = counter + 1
-        if counter % 99 == 0:
-            await asyncio.sleep(1)  # to avoid TonApi rate limit
+                user.banned = False
+                user.balance = won_balance
+                user.invite_link = invite_link.invite_link
+                await UsersService().edit_user(
+                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                )
+                break
+            elif won_balance != user.balance and not user.banned:
+                print(
+                    f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
+                )
+                user.balance = won_balance
+                await UsersService().edit_user(
+                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                )
+
+            counter = counter + 1
+            if counter % 99 == 0:
+                await asyncio.sleep(1)  # to avoid TonApi rate limit
+    except LiteServerError:
+        pass
 
 
 async def main():
@@ -170,7 +188,7 @@ async def main():
 
     # Schedule task_update_users to run every 59 seconds
     aiocron.crontab(
-        "* * * * * */59",
+        f"* * * * * */{settings.REFRESH_TIMEOUT}",
         func=task_update_users,
         args=(bot, uow, ton_api_helper, dedust_helper),
         start=True,
