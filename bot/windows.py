@@ -163,9 +163,7 @@ async def main_menu_window(
     disconnect_text = (
         "Отключиться" if atc_manager.user.language_code == "ru" else "Disconnect"
     )
-    price = await dedust_helper.get_jetton_price(
-        settings.WON_ADDR, settings.WON_LP_ADDR
-    )
+    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
     kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
 
     # Sending the message and updating user state
