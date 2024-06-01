@@ -15,6 +15,7 @@ from aiohttp.client_exceptions import ClientPayloadError
 from asyncio.exceptions import IncompleteReadError
 
 from pytonapi import Tonapi
+from pytonapi.exceptions import TONAPIError
 from pytoniq import LiteBalancer
 from pytoniq.liteclient import LiteServerError
 
@@ -137,6 +138,8 @@ async def task_update_users(
                 await asyncio.sleep(1)  # to avoid TonApi rate limit
     except LiteServerError:
         pass
+    except TONAPIError as e:
+        logging.error(f"TONAPIError: {e}")
 
 
 async def main():
