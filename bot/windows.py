@@ -117,6 +117,7 @@ async def main_menu_window(
         invite_link_text = "Вы уже вступили в чат\n\n"
     elif won_balance and won_balance >= settings.THRESHOLD_BALANCE:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
+        username = user_chat.username if user_chat.username else invite_link_name
         invite_link = await bot.create_chat_invite_link(
             chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
         )
@@ -126,7 +127,7 @@ async def main_menu_window(
             user_id = await UsersService().add_user(
                 uow=uow,
                 user=UserSchemaAdd(
-                    username=user_chat.username,
+                    username=username,
                     balance=won_balance,
                     blacklisted=False,
                     entry_balance=won_balance,
