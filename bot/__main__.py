@@ -41,14 +41,16 @@ async def task_update_users(
     bot: Bot, uow: UnitOfWork, ton_api_helper: TonApiHelper, dedust_helper: DeDustHelper
 ):
     try:
-        print("@ Update users task started")
+        # print("@ Update users task started")
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
-            print(f"### Checking user with id {user.id}")
+            if user.blacklisted:
+                continue
+            # print(f"### Checking user with id {user.id}")
             won_lp_balance = await ton_api_helper.get_jetton_balance(
                 user.wallet, settings.WON_LP_ADDR
             )

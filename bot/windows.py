@@ -141,16 +141,19 @@ async def main_menu_window(
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
-            user.wallet = wallet
-            history_entry = HistorySchemaAdd(
-                user_id=user.id,
-                balance_delta=0,
-                price=-1.0,
-                wallet=wallet,
-            )
-            await UsersService().edit_user(
-                uow=uow, user_id=user.id, user=user, history_entry=history_entry
-            )
+            if not user.blacklisted:
+                user.wallet = wallet
+                history_entry = HistorySchemaAdd(
+                    user_id=user.id,
+                    balance_delta=0,
+                    price=-1.0,
+                    wallet=wallet,
+                )
+                await UsersService().edit_user(
+                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                )
+            else:
+                invite_link_text = "Вам запрещен вход в чат.\n\n"
 
     text = (
         f"Подключенный кошелек {app_wallet.name}:\n\n"
