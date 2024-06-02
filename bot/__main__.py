@@ -48,7 +48,7 @@ async def task_update_users(
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
-            print(f"### Checking user with id {user.id} and wallet {user.wallet}")
+            print(f"### Checking user with id {user.id}")
             won_lp_balance = await ton_api_helper.get_jetton_balance(
                 user.wallet, settings.WON_LP_ADDR
             )
