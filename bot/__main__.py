@@ -103,7 +103,6 @@ async def task_update_users(
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-                break
             elif user.banned and won_balance >= settings.THRESHOLD_BALANCE:
                 print(
                     f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
@@ -125,7 +124,6 @@ async def task_update_users(
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
-                break
             elif won_balance != user.balance and not user.banned:
                 print(
                     f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
