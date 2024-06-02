@@ -41,12 +41,14 @@ async def task_update_users(
     bot: Bot, uow: UnitOfWork, ton_api_helper: TonApiHelper, dedust_helper: DeDustHelper
 ):
     try:
+        print("@ Update users task started")
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
+            print(f"### Checking user with id {user.id} and wallet {user.wallet}")
             won_lp_balance = await ton_api_helper.get_jetton_balance(
                 user.wallet, settings.WON_LP_ADDR
             )
@@ -140,6 +142,8 @@ async def task_update_users(
         pass
     except TONAPIError as e:
         logging.error(f"TONAPIError: {e}")
+    except TimeoutError as e:
+        logging.error("TimeoutError")
 
 
 async def main():
