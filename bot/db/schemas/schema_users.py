@@ -11,6 +11,7 @@ class UserSchemaAdd(BaseModel):
     wallet: str
     tg_user_id: int
     entry_balance: int
+    og: bool
 
     class Config:
         from_attributes = True

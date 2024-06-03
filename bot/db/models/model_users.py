@@ -17,6 +17,7 @@ class UsersORM(Base):
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     invite_link: Mapped[Optional[str]]
     wallet: Mapped[str]
+    og: Mapped[bool] = mapped_column(Boolean, default=False)
 
     history: Mapped[list["HistoryORM"]] = relationship(
         back_populates="user",

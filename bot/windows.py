@@ -94,11 +94,24 @@ async def main_menu_window(
     bot: Bot = _["bots"][0]
     user_chat = _["event_context"].chat
 
+    with open("ogs.txt", "r") as file:
+        ogs = file.readlines()
+    ogs = [line.strip().lower() for line in ogs]
+    if user_chat.username:
+        is_og = user_chat.username.lower() in ogs
+    else:
+        is_og = False
+
+    if is_og:
+        threshold_balance = settings.OG_THRESHOLD_BALANCE
+    else:
+        threshold_balance = settings.THRESHOLD_BALANCE
+
     existing_member = await bot.get_chat_member(
         chat_id=settings.CHAT_ID, user_id=user_chat.id
     )
 
-    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {markdown.hcode(settings.THRESHOLD_BALANCE)}\n\n"
+    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
 
     wallet = Address(account_wallet.address.hex_address).to_str()
     won_balance = await ton_api_helper.get_jetton_balance(
@@ -109,13 +122,17 @@ async def main_menu_window(
     )
     if won_balance:
         won_balance = (won_balance + won_lp_balance) if won_lp_balance else won_balance
-        print(
-            f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
+        # print(
+        #     f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
+        # )
+        await bot.send_message(
+            chat_id=settings.ADMIN_CHAT_ID,
+            text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}",
         )
 
     if isinstance(existing_member, ChatMemberMember):
         invite_link_text = "Вы уже вступили в чат\n\n"
-    elif won_balance and won_balance >= settings.THRESHOLD_BALANCE:
+    elif won_balance and won_balance >= threshold_balance:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         username = user_chat.username if user_chat.username else invite_link_name
         invite_link = await bot.create_chat_invite_link(
@@ -135,6 +152,7 @@ async def main_menu_window(
                     invite_link=invite_link.invite_link,
                     wallet=wallet,
                     tg_user_id=user_chat.id,
+                    og=is_og,
                 ),
             )
         except IntegrityError:  # User is already in the database

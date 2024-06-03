@@ -64,8 +64,12 @@ async def task_update_users(
             won_balance = (
                 won_balance + won_lp_balance if won_lp_balance else won_balance
             )
-
             balance_delta = won_balance - user.balance
+
+            if user.og:
+                threshold_balance = settings.OG_THRESHOLD_BALANCE
+            else:
+                threshold_balance = settings.THRESHOLD_BALANCE
 
             history_entry = HistorySchemaAdd(
                 user_id=user.id,
@@ -74,10 +78,10 @@ async def task_update_users(
                 wallet=user.wallet,
             )
 
-            if won_balance < settings.THRESHOLD_BALANCE and not user.banned:
-                print(
-                    f"--- User with id {user.id} and wallet {user.wallet} has low balance"
-                )
+            if won_balance < threshold_balance and not user.banned:
+                # print(
+                #     f"--- User with id {user.id} and wallet {user.wallet} has low balance"
+                # )
                 user.banned = True
                 user.balance = won_balance
                 await UsersService().edit_user(
@@ -97,7 +101,7 @@ async def task_update_users(
                 message_text = (
                     f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
                     f"Убрали вас из чата.\n\n"
-                    f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(settings.THRESHOLD_BALANCE))} WON"
+                    f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(threshold_balance))} WON"
                 )
                 reply_markup = await kb_buy_won(settings=settings, price=price)
                 await bot.send_message(
@@ -105,10 +109,14 @@ async def task_update_users(
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-            elif user.banned and won_balance >= settings.THRESHOLD_BALANCE:
-                print(
-                    f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
+                await bot.send_message(
+                    chat_id=settings.ADMIN_CHAT_ID,
+                    text=f"--- User BANNED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
                 )
+            elif user.banned and won_balance >= threshold_balance:
+                # print(
+                #     f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
+                # )
 
                 invite_link = await bot.create_chat_invite_link(
                     chat_id=settings.CHAT_ID, name=user.username, member_limit=1
@@ -119,6 +127,10 @@ async def task_update_users(
                     f"Ссылка для вступления: {invite_link.invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
+                await bot.send_message(
+                    chat_id=settings.ADMIN_CHAT_ID,
+                    text=f"+++ User UNBANNED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
+                )
 
                 user.banned = False
                 user.balance = won_balance
@@ -126,9 +138,15 @@ async def task_update_users(
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
-            elif won_balance != user.balance and not user.banned:
-                print(
-                    f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
+            elif (
+                won_balance != user.balance and not user.banned and not user.blacklisted
+            ):
+                # print(
+                #     f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
+                # )
+                await bot.send_message(
+                    chat_id=settings.ADMIN_CHAT_ID,
+                    text=f"*** NEW BALANCE \n\n@{user.username}\n{markdown.hcode(user.wallet)}\n\nbalance={won_balance}\ndelta={balance_delta}",
                 )
                 user.balance = won_balance
                 await UsersService().edit_user(
