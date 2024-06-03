@@ -161,6 +161,7 @@ async def main_menu_window(
             )
             if not user.blacklisted:
                 user.wallet = wallet
+                user.og = is_og
                 history_entry = HistorySchemaAdd(
                     user_id=user.id,
                     balance_delta=0,

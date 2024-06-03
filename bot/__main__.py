@@ -45,11 +45,24 @@ async def task_update_users(
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
 
+        with open("blacklist.txt", "r") as file:
+            blacklist = file.readlines()
+        blacklist = [line.strip().lower() for line in blacklist]
+
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
             if user.blacklisted:
                 continue
+            if user.username.lower() in blacklist:
+                user.blacklisted = True
+                await UsersService().edit_user(uow=uow, user_id=user.id, user=user)
+                await bot.send_message(
+                    chat_id=settings.ADMIN_CHAT_ID,
+                    text=f"BLACKLISTED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
+                )
+                continue
+
             # print(f"### Checking user with id {user.id}")
             won_lp_balance = await ton_api_helper.get_jetton_balance(
                 user.wallet, settings.WON_LP_ADDR
