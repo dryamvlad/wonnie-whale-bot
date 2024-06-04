@@ -135,7 +135,7 @@ async def main_menu_window(
             chat_id=settings.ADMIN_CHAT_ID,
             text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}",
         )
-        asyncio.sleep(1)
+        await asyncio.sleep(1)
 
     if isinstance(existing_member, ChatMemberMember) and isinstance(
         channel_existing_member, ChatMemberMember
