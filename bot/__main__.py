@@ -59,7 +59,7 @@ async def task_update_users(
                 await UsersService().edit_user(uow=uow, user_id=user.id, user=user)
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"BLACKLISTED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
+                    text=f"BLACKLISTED \n\n@{user.username} \n{user.tg_user_id}\n{markdown.hcode(user.wallet)}",
                 )
                 continue
 
@@ -124,7 +124,7 @@ async def task_update_users(
                 )
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"--- User BANNED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
+                    text=f"--- User BANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
                 )
             elif user.banned and won_balance >= threshold_balance:
                 # print(
@@ -142,7 +142,7 @@ async def task_update_users(
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"+++ User UNBANNED \n\n@{user.username} \n{markdown.hcode(user.wallet)}",
+                    text=f"+++ User UNBANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
                 )
 
                 user.banned = False
@@ -159,7 +159,7 @@ async def task_update_users(
                 # )
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"*** NEW BALANCE \n\n@{user.username}\n{markdown.hcode(user.wallet)}\n\nbalance={won_balance}\ndelta={balance_delta}",
+                    text=f"*** NEW BALANCE \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}\n\nbalance={won_balance}\ndelta={balance_delta}",
                 )
                 user.balance = won_balance
                 await UsersService().edit_user(
@@ -172,7 +172,7 @@ async def task_update_users(
     except LiteServerError:
         pass
     except TONAPIError as e:
-        logging.error(f"TONAPIError: {e}")
+        logging.error(f"TONAPIError")
     except TimeoutError as e:
         logging.error("TimeoutError")
 
