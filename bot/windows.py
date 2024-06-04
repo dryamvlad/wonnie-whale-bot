@@ -207,7 +207,7 @@ async def main_menu_window(
     kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
 
     # Sending the message and updating user state
-    await atc_manager._send_message(text, reply_markup=kb)
+    await bot.send_message(text, reply_markup=kb)
     await atc_manager.state.set_state(UserState.main_menu)
 
 
