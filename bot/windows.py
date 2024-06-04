@@ -193,7 +193,8 @@ async def main_menu_window(
         f"Подключенный кошелек {app_wallet.name}:\n\n"
         f"{markdown.hcode(wallet)}\n\n"
         f"Баланс: {won_balance} WON\n\n"
-        f"{invite_link_text}"
+        f"{invite_link_text}\n"
+        f"{channel_invite_link_text}"
     )
 
     # Create inline keyboard with disconnect option
