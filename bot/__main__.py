@@ -105,11 +105,11 @@ async def task_update_users(
                     await bot.ban_chat_member(
                         chat_id=settings.CHAT_ID, user_id=user.tg_user_id
                     )
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                     await bot.ban_chat_member(
                         chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
                     )
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                     await bot.revoke_chat_invite_link(
                         settings.CHAT_ID, user.invite_link
                     )
@@ -127,7 +127,7 @@ async def task_update_users(
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
                     text=f"--- User BANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
@@ -150,7 +150,7 @@ async def task_update_users(
                     f"Ссылка для подписки на канал: {channel_invite_link.invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
                 await bot.send_message(
                     chat_id=settings.ADMIN_CHAT_ID,
                     text=f"+++ User UNBANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
