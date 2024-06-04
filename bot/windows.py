@@ -110,8 +110,14 @@ async def main_menu_window(
     existing_member = await bot.get_chat_member(
         chat_id=settings.CHAT_ID, user_id=user_chat.id
     )
+    channel_existing_member = await bot.get_chat_member(
+        chat_id=settings.CHANNEL_ID, user_id=user_chat.id
+    )
 
-    invite_link_text = f"Мало WON на балансе для вступления в чат. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
+    invite_link_text = (
+        f"Мало WON на балансе. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
+    )
+    channel_invite_link_text = invite_link_text
 
     wallet = Address(account_wallet.address.hex_address).to_str()
     won_balance = await ton_api_helper.get_jetton_balance(
@@ -130,15 +136,24 @@ async def main_menu_window(
             text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}",
         )
 
-    if isinstance(existing_member, ChatMemberMember):
+    if isinstance(existing_member, ChatMemberMember) and isinstance(
+        channel_existing_member, ChatMemberMember
+    ):
         invite_link_text = "Вы уже вступили в чат\n\n"
+        channel_invite_link_text = "Вы уже подписаны на канал\n\n"
     elif won_balance and won_balance >= threshold_balance:
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         username = user_chat.username if user_chat.username else invite_link_name
         invite_link = await bot.create_chat_invite_link(
             chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
         )
+        channel_invite_link = await bot.create_chat_invite_link(
+            chat_id=settings.CHANNEL_ID, name=invite_link_name, member_limit=1
+        )
         invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+        channel_invite_link_text = (
+            f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
+        )
 
         try:
             user_id = await UsersService().add_user(
@@ -172,7 +187,7 @@ async def main_menu_window(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
             else:
-                invite_link_text = "Вам запрещен вход в чат.\n\n"
+                invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
 
     text = (
         f"Подключенный кошелек {app_wallet.name}:\n\n"

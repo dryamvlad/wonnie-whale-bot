@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     WON_ADDR: str
     WON_LP_ADDR: str
     CHAT_ID: int
+    CHANNEL_ID: int
     ADMIN_CHAT_ID: int
     THRESHOLD_BALANCE: int
     OG_THRESHOLD_BALANCE: int

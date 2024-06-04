@@ -105,15 +105,21 @@ async def task_update_users(
                     await bot.ban_chat_member(
                         chat_id=settings.CHAT_ID, user_id=user.tg_user_id
                     )
+                    await bot.ban_chat_member(
+                        chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+                    )
                     await bot.revoke_chat_invite_link(
                         settings.CHAT_ID, user.invite_link
+                    )
+                    await bot.revoke_chat_invite_link(
+                        settings.CHANNEL_ID, user.invite_link
                     )
                 except TelegramBadRequest:
                     pass
 
                 message_text = (
                     f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
-                    f"Убрали вас из чата.\n\n"
+                    f"Убрали вас из коммьюнити.\n\n"
                     f"Пополните баланс чтобы вернуться. Надо не меньше {markdown.hcode(str(threshold_balance))} WON"
                 )
                 reply_markup = await kb_buy_won(settings=settings, price=price)
@@ -134,10 +140,14 @@ async def task_update_users(
                 invite_link = await bot.create_chat_invite_link(
                     chat_id=settings.CHAT_ID, name=user.username, member_limit=1
                 )
+                channel_invite_link = await bot.create_chat_invite_link(
+                    chat_id=settings.CHANNEL_ID, name=user.username, member_limit=1
+                )
 
                 message_text = (
-                    f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в чат!\n\n"
-                    f"Ссылка для вступления: {invite_link.invite_link}"
+                    f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в коммьюнити!\n\n"
+                    f"Ссылка для вступления в чат: {invite_link.invite_link}"
+                    f"Ссылка для подписки на канал: {channel_invite_link.invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
                 await bot.send_message(
