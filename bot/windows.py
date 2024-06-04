@@ -133,7 +133,7 @@ async def main_menu_window(
         # )
         await bot.send_message(
             chat_id=settings.ADMIN_CHAT_ID,
-            text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}",
+            text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}\n{won_balance} WON\n\n",
         )
         await asyncio.sleep(1)
 
