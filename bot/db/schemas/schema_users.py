@@ -8,6 +8,7 @@ class UserSchemaAdd(BaseModel):
     blacklisted: bool
     banned: bool
     invite_link: str
+    channel_invite_link: str
     wallet: str
     tg_user_id: int
     entry_balance: int

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     CHAT_ID: int
     CHANNEL_ID: int
     ADMIN_CHAT_ID: int
+    ADMIN_CHANNEL_ID: int
     THRESHOLD_BALANCE: int
     OG_THRESHOLD_BALANCE: int
 

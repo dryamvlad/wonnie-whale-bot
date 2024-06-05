@@ -4,7 +4,11 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.utils import markdown
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramAPIError,
+)
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_tonconnect.handlers import AiogramTonConnectHandlers
 from aiogram_tonconnect.middleware import AiogramTonConnectMiddleware
@@ -23,7 +27,13 @@ import aiocron
 
 from .handlers import router
 from .throttling import ThrottlingMiddleware
-from .util_middleware import UtilMiddleware, TonApiHelper, DeDustHelper
+from .util_middleware import (
+    AdminNotifier,
+    UtilMiddleware,
+    TonApiHelper,
+    DeDustHelper,
+    ListChecker,
+)
 from bot.config import settings
 from bot.db.utils.unitofwork import UnitOfWork
 from bot.db.services.service_users import UsersService
@@ -38,32 +48,29 @@ print("-----BOT STARTED-----")
 
 
 async def task_update_users(
-    bot: Bot, uow: UnitOfWork, ton_api_helper: TonApiHelper, dedust_helper: DeDustHelper
+    bot: Bot,
+    uow: UnitOfWork,
+    ton_api_helper: TonApiHelper,
+    dedust_helper: DeDustHelper,
+    list_checker: ListChecker,
+    admin_notifier: AdminNotifier,
 ):
     try:
-        # print("@ Update users task started")
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
-
-        with open("blacklist.txt", "r") as file:
-            blacklist = file.readlines()
-        blacklist = [line.strip().lower() for line in blacklist]
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         for user in users:
+            is_blacklisted = list_checker.check_blacklist(user.username)
             if user.blacklisted:
                 continue
-            if user.username.lower() in blacklist:
+            if is_blacklisted:
                 user.blacklisted = True
                 await UsersService().edit_user(uow=uow, user_id=user.id, user=user)
-                await bot.send_message(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"BLACKLISTED \n\n@{user.username} \n{user.tg_user_id}\n{markdown.hcode(user.wallet)}",
-                )
+                await admin_notifier.notify_admin(type="blacklist", user=user)
                 continue
 
-            # print(f"### Checking user with id {user.id}")
             won_lp_balance = await ton_api_helper.get_jetton_balance(
                 user.wallet, settings.WON_LP_ADDR
             )
@@ -71,7 +78,7 @@ async def task_update_users(
                 user.wallet, settings.WON_ADDR
             )
 
-            if not won_balance:
+            if not won_balance and not won_lp_balance:
                 continue
 
             won_balance = (
@@ -92,29 +99,24 @@ async def task_update_users(
             )
 
             if won_balance < threshold_balance and not user.banned:
-                # print(
-                #     f"--- User with id {user.id} and wallet {user.wallet} has low balance"
-                # )
                 user.banned = True
                 user.balance = won_balance
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
 
-                try:
-                    await bot.ban_chat_member(
-                        chat_id=settings.CHAT_ID, user_id=user.tg_user_id
-                    )
-                    await asyncio.sleep(1)
-                    await bot.ban_chat_member(
-                        chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
-                    )
-                    await asyncio.sleep(1)
-                    await bot.revoke_chat_invite_link(
-                        settings.CHAT_ID, user.invite_link
-                    )
-                except TelegramBadRequest:
-                    pass
+                ban_chat_res = await bot.ban_chat_member(
+                    chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+                )
+                ban_chan_res = await bot.ban_chat_member(
+                    chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+                )
+                revoke_chat_res = await bot.revoke_chat_invite_link(
+                    settings.CHAT_ID, user.invite_link
+                )
+                revoke_chan_res = await bot.revoke_chat_invite_link(
+                    settings.CHANNEL_ID, user.channel_invite_link
+                )
 
                 message_text = (
                     f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
@@ -127,23 +129,14 @@ async def task_update_users(
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-                await asyncio.sleep(1)
-                await bot.send_message(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"--- User BANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
-                )
+                await admin_notifier.notify_admin(type="ban", user=user)
             elif user.banned and won_balance >= threshold_balance:
-                # print(
-                #     f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
-                # )
-
-                await bot.unban_chat_member(
+                chat_unban_res = await bot.unban_chat_member(
                     chat_id=settings.CHAT_ID, user_id=user.tg_user_id
                 )
-                await bot.unban_chat_member(
+                chan_unban_res = await bot.unban_chat_member(
                     chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
                 )
-                await asyncio.sleep(1)
                 invite_link = await bot.create_chat_invite_link(
                     chat_id=settings.CHAT_ID, name=user.username, member_limit=1
                 )
@@ -153,15 +146,11 @@ async def task_update_users(
 
                 message_text = (
                     f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в коммьюнити!\n\n"
-                    f"Ссылка для вступления в чат: {invite_link.invite_link}"
+                    f"Ссылка для вступления в чат: {invite_link.invite_link}\n\n"
                     f"Ссылка для подписки на канал: {channel_invite_link.invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
-                await asyncio.sleep(1)
-                await bot.send_message(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"+++ User UNBANNED \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}",
-                )
+                await admin_notifier.notify_admin(type="unban", user=user)
 
                 user.banned = False
                 user.balance = won_balance
@@ -172,13 +161,8 @@ async def task_update_users(
             elif (
                 won_balance != user.balance and not user.banned and not user.blacklisted
             ):
-                # print(
-                #     f"*** User with id {user.id} and wallet {user.wallet} has new balance={won_balance} with delta={balance_delta}"
-                # )
-                await bot.send_message(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    text=f"*** NEW BALANCE \n\n@{user.username} \n{user.tg_user_id} \n{markdown.hcode(user.wallet)}\n\nbalance={won_balance}\ndelta={balance_delta}",
-                )
+                buy_sell = "buy" if balance_delta > 0 else "sell"
+                await admin_notifier.notify_admin(type=buy_sell, user=user)
                 user.balance = won_balance
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
@@ -193,6 +177,10 @@ async def task_update_users(
         logging.error(f"TONAPIError")
     except TimeoutError as e:
         logging.error("TimeoutError")
+    except TelegramAPIError as e:
+        logging.error(
+            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+        )
 
 
 async def main():
@@ -214,16 +202,20 @@ async def main():
     ton_api = Tonapi(settings.TON_API_KEY)
     ton_api_helper = TonApiHelper(ton_api=ton_api)
     dedust_helper = DeDustHelper(provider=provider)
+    list_checker = ListChecker()
+    admin_notifier = AdminNotifier(bot=bot, settings=settings)
 
     dp = Dispatcher(storage=storage)
 
-    dp.update.middleware.register(ThrottlingMiddleware())
+    # dp.update.middleware.register(ThrottlingMiddleware())
     dp.update.middleware.register(
         UtilMiddleware(
             ton_api_helper=ton_api_helper,
             dedust_helper=dedust_helper,
             uow=uow,
             settings=settings,
+            list_checker=list_checker,
+            admin_notifier=admin_notifier,
         )
     )
 
@@ -244,7 +236,7 @@ async def main():
     aiocron.crontab(
         f"* * * * * */{settings.REFRESH_TIMEOUT}",
         func=task_update_users,
-        args=(bot, uow, ton_api_helper, dedust_helper),
+        args=(bot, uow, ton_api_helper, dedust_helper, list_checker, admin_notifier),
         start=True,
     )
 
@@ -264,9 +256,9 @@ if __name__ == "__main__" or __name__ == "bot.__main__":
         pass
     except asyncio.exceptions.IncompleteReadError:
         pass
-    except TelegramBadRequest as e:
-        logging.error(f"TelegramBadRequest: {e.message}")
-    except TelegramForbiddenError as e:
-        logging.error(f"TelegramForbiddenError: {e.message}")
+    except TelegramAPIError as e:
+        logging.error(
+            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+        )
     except asyncio.exceptions.TimeoutError as e:
         logging.error("TimeoutError")

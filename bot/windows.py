@@ -2,15 +2,16 @@ import asyncio
 import logging
 from aiogram import Bot
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import User, ChatMemberMember
+from aiogram.types import User, ChatMemberMember, Chat
 from aiogram.types import InlineKeyboardButton as Button
 from aiogram.types import InlineKeyboardMarkup as Markup
 from aiogram.utils import markdown
+from aiogram.exceptions import TelegramAPIError
 
 from aiogram_tonconnect import ATCManager
 from aiogram_tonconnect.tonconnect.models import AccountWallet, AppWallet
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from bot.db.schemas.schema_users import UserSchema, UserSchemaAdd
 from bot.db.schemas.schema_history import HistorySchemaAdd
@@ -18,11 +19,13 @@ from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
 from bot.keyboards import kb_buy_won
 
+from pytoniq.liteclient import LiteServerError
+
 from bot.config import Settings
 
 from pytoniq_core import Address
 
-from bot.util_middleware import TonApiHelper, DeDustHelper
+from bot.util_middleware import AdminNotifier, ListChecker, TonApiHelper, DeDustHelper
 
 
 # Define a state group for the user with two states
@@ -79,6 +82,8 @@ async def main_menu_window(
     uow: UnitOfWork,
     settings: Settings,
     dedust_helper: DeDustHelper,
+    list_checker: ListChecker,
+    admin_notifier: AdminNotifier,
     **_,
 ) -> None:
     """
@@ -87,128 +92,196 @@ async def main_menu_window(
     :param atc_manager: ATCManager instance for managing TON Connect integration.
     :param app_wallet: AppWallet instance representing the connected wallet application.
     :param account_wallet: AccountWallet instance representing the connected wallet account.
+    :param ton_api_helper: TonApiHelper instance for interacting with the TON blockchain.
+    :param uow: UnitOfWork instance for interacting with the database.
+    :param settings: Settings instance for accessing the bot's settings.
+    :param dedust_helper: DeDustHelper instance for interacting with the DeDust API.
+    :param list_checker: ListChecker instance for checking user special lists.
+    :param admin_notifier: AdminNotifier instance for notifying the admin channel.
     :param _: Unused data from the middleware.
     :return: None
     """
 
     bot: Bot = _["bots"][0]
-    user_chat = _["event_context"].chat
+    user_chat: Chat = _["event_context"].chat
 
-    with open("ogs.txt", "r") as file:
-        ogs = file.readlines()
-    ogs = [line.strip().lower() for line in ogs]
-    if user_chat.username:
-        is_og = user_chat.username.lower() in ogs
-    else:
-        is_og = False
-
-    if is_og:
-        threshold_balance = settings.OG_THRESHOLD_BALANCE
-    else:
-        threshold_balance = settings.THRESHOLD_BALANCE
-
-    existing_member = await bot.get_chat_member(
-        chat_id=settings.CHAT_ID, user_id=user_chat.id
-    )
-    channel_existing_member = await bot.get_chat_member(
-        chat_id=settings.CHANNEL_ID, user_id=user_chat.id
-    )
-
-    invite_link_text = (
-        f"Мало WON на балансе. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
-    )
-    channel_invite_link_text = invite_link_text
-
-    wallet = Address(account_wallet.address.hex_address).to_str()
-    won_balance = await ton_api_helper.get_jetton_balance(
-        account_wallet.address, settings.WON_ADDR
-    )
-    won_lp_balance = await ton_api_helper.get_jetton_balance(
-        wallet, settings.WON_LP_ADDR
-    )
-    if won_balance:
-        won_balance = (won_balance + won_lp_balance) if won_lp_balance else won_balance
-        # print(
-        #     f"__user: {user_chat.id} wallet: {wallet} with balance {won_balance} connected\n"
-        # )
-        await bot.send_message(
-            chat_id=settings.ADMIN_CHAT_ID,
-            text=f"___User CONNECTED \nog: {is_og}\n\n @{user_chat.username}\n{markdown.hcode(wallet)}\n{won_balance} WON\n\n",
+    try:
+        # delete ton connect message window
+        state_data = await atc_manager.state.get_data()
+        await bot.delete_message(
+            message_id=state_data.get("message_id"), chat_id=user_chat.id
         )
-        await asyncio.sleep(1)
 
-    if isinstance(existing_member, ChatMemberMember) and isinstance(
-        channel_existing_member, ChatMemberMember
-    ):
-        invite_link_text = "Вы уже вступили в чат\n\n"
-        channel_invite_link_text = "Вы уже подписаны на канал\n\n"
-    elif won_balance and won_balance >= threshold_balance:
+        is_og = list_checker.check_og(user_chat.username)
+        is_blacklisted = list_checker.check_blacklist(user_chat.username)
+
+        if is_og:
+            threshold_balance = settings.OG_THRESHOLD_BALANCE
+        else:
+            threshold_balance = settings.THRESHOLD_BALANCE
+
+        invite_link_text = f"Мало WON на балансе. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
+        channel_invite_link_text = ""
+
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         username = user_chat.username if user_chat.username else invite_link_name
-        invite_link = await bot.create_chat_invite_link(
-            chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
+
+        wallet = Address(account_wallet.address.hex_address).to_str()
+        won_balance = await ton_api_helper.get_jetton_balance(
+            account_wallet.address, settings.WON_ADDR
         )
-        channel_invite_link = await bot.create_chat_invite_link(
-            chat_id=settings.CHANNEL_ID, name=invite_link_name, member_limit=1
-        )
-        invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
-        channel_invite_link_text = (
-            f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
+        won_lp_balance = await ton_api_helper.get_jetton_balance(
+            wallet, settings.WON_LP_ADDR
         )
 
-        try:
-            user_id = await UsersService().add_user(
-                uow=uow,
-                user=UserSchemaAdd(
-                    username=username,
-                    balance=won_balance,
-                    blacklisted=False,
-                    entry_balance=won_balance,
-                    banned=False,
-                    invite_link=invite_link.invite_link,
-                    wallet=wallet,
-                    tg_user_id=user_chat.id,
-                    og=is_og,
-                ),
+        new_user = UserSchemaAdd(
+            username=username,
+            balance=won_balance,
+            blacklisted=is_blacklisted,
+            og=is_og,
+            entry_balance=won_balance,
+            banned=False,
+            wallet=wallet,
+            tg_user_id=user_chat.id,
+            invite_link="",
+            channel_invite_link="",
+        )
+
+        if won_balance:
+            won_balance = (
+                (won_balance + won_lp_balance) if won_lp_balance else won_balance
             )
-        except IntegrityError:  # User is already in the database
+            await admin_notifier.notify_admin(type="connect", user=new_user)
+
+        existing_member = await bot.get_chat_member(
+            chat_id=settings.CHAT_ID, user_id=user_chat.id
+        )
+        channel_existing_member = await bot.get_chat_member(
+            chat_id=settings.CHANNEL_ID, user_id=user_chat.id
+        )
+        is_in_chat = isinstance(existing_member, ChatMemberMember)
+        is_in_channel = isinstance(channel_existing_member, ChatMemberMember)
+
+        try:
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
-            if not user.blacklisted:
-                user.wallet = wallet
-                user.og = is_og
-                history_entry = HistorySchemaAdd(
-                    user_id=user.id,
-                    balance_delta=0,
-                    price=-1.0,
-                    wallet=wallet,
-                )
-                await UsersService().edit_user(
-                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
-                )
+        except NoResultFound:
+            user = None
+
+        if won_balance and won_balance >= threshold_balance:
+            invite_link_text = "Вы уже в чате.\n\n"
+            channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
+            if not is_blacklisted:
+                if not is_in_chat:
+                    invite_link = await bot.create_chat_invite_link(
+                        chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
+                    )
+                    invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+                if not is_in_channel:
+                    channel_invite_link = await bot.create_chat_invite_link(
+                        chat_id=settings.CHANNEL_ID,
+                        name=invite_link_name,
+                        member_limit=1,
+                    )
+                    channel_invite_link_text = (
+                        f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
+                    )
             else:
                 invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
+                channel_invite_link_text = ""
 
-    text = (
-        f"Подключенный кошелек {app_wallet.name}:\n\n"
-        f"{markdown.hcode(wallet)}\n\n"
-        f"Баланс: {won_balance} WON\n\n"
-        f"{invite_link_text}\n"
-        f"{channel_invite_link_text}"
-    )
+            if not user:
+                new_user.invite_link = (
+                    invite_link.invite_link if not is_blacklisted else ""
+                )
+                new_user.channel_invite_link = (
+                    channel_invite_link.invite_link if not is_blacklisted else ""
+                )
+                await UsersService().add_user(
+                    uow=uow,
+                    user=new_user,
+                )
+            else:  # User reportedly has changed wallet with enough balance
+                if not user.blacklisted:
+                    await admin_notifier.notify_admin(
+                        type="change_wallet_high" if user.wallet != wallet else "unban",
+                        user=user,
+                    )
+                    user.wallet = wallet
+                    user.og = is_og
+                    user.blacklisted = is_blacklisted
+                    user.balance = won_balance
+                    user.banned = False
+                    user.invite_link = invite_link.invite_link
+                    user.channel_invite_link = channel_invite_link.invite_link
+                    history_entry = HistorySchemaAdd(
+                        user_id=user.id,
+                        balance_delta=0,
+                        price=-1.0,
+                        wallet=wallet,
+                    )
+                    await UsersService().edit_user(
+                        uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                    )
+                    await bot.unban_chat_member(
+                        chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+                    )
+                    await bot.unban_chat_member(
+                        chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+                    )
+                else:
+                    invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
+        # User has changed wallet with insufficient balance
+        elif user:
+            await admin_notifier.notify_admin(
+                type="change_wallet_low" if user.wallet != wallet else "ban",
+                user=user,
+            )
+            user.wallet = wallet
+            user.balance = won_balance
+            user.banned = True
+            user.og = is_og
+            user.blacklisted = is_blacklisted
+            history_entry = HistorySchemaAdd(
+                user_id=user.id,
+                balance_delta=won_balance - user.balance,
+                price=-1.0,
+                wallet=wallet,
+            )
+            await UsersService().edit_user(
+                uow=uow, user_id=user.id, user=user, history_entry=history_entry
+            )
+            await bot.ban_chat_member(chat_id=settings.CHAT_ID, user_id=user.tg_user_id)
+            await bot.ban_chat_member(
+                chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+            )
+            await bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
+            await bot.revoke_chat_invite_link(
+                settings.CHANNEL_ID, user.channel_invite_link
+            )
 
-    # Create inline keyboard with disconnect option
-    # send_amount_ton_text = "Отправить TON" if atc_manager.user.language_code == "ru" else "Send TON"
-    disconnect_text = (
-        "Отключиться" if atc_manager.user.language_code == "ru" else "Disconnect"
-    )
-    price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
-    kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
+        text = (
+            f"Подключенный кошелек {app_wallet.name}:\n\n"
+            f"{markdown.hcode(wallet)}\n\n"
+            f"Баланс: {won_balance} WON\n\n"
+            f"{invite_link_text}\n"
+            f"{channel_invite_link_text}"
+        )
+        try:
+            price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
+        except LiteServerError:
+            price = 0
+            logging.error("Failed to get price from dedust")
 
-    # Sending the message and updating user state
-    await bot.send_message(chat_id=user_chat.id, text=text, reply_markup=kb)
-    await atc_manager.state.set_state(UserState.main_menu)
+        kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
+
+        await bot.send_message(chat_id=user_chat.id, text=text, reply_markup=kb)
+        await atc_manager.state.set_state(UserState.main_menu)
+    except TelegramAPIError as e:
+        logging.error(
+            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+        )
 
 
 async def send_amount_ton_window(atc_manager: ATCManager, **_) -> None:

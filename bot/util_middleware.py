@@ -1,9 +1,11 @@
 import asyncio
 import logging
-from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject
-from typing import Callable, Dict, Any, Awaitable
+from aiogram import BaseMiddleware, Bot
+from aiogram.types import TelegramObject, Chat
+from aiogram.utils import markdown
+from typing import Callable, Dict, Any, Awaitable, Union
 
+from bot.db.schemas.schema_users import UserSchema
 from bot.db.utils.unitofwork import UnitOfWork
 from bot.config import Settings
 
@@ -30,6 +32,61 @@ class TonApiHelper:
                 return int(jetton_balance)
 
         return None
+
+
+class ListChecker:
+    def check_og(self, username: str) -> bool:
+        with open("ogs.txt", "r") as file:
+            ogs = file.readlines()
+        ogs = [line.strip().lower() for line in ogs]
+        if username:
+            return username.lower() in ogs
+        return False
+
+    def check_blacklist(self, username: str) -> bool:
+        with open("blacklist.txt", "r") as file:
+            blacklist = file.readlines()
+        blacklist = [line.strip().lower() for line in blacklist]
+        if username:
+            return username.lower() in blacklist
+        return False
+
+
+class AdminNotifier:
+    def __init__(self, bot: Bot, settings: Settings) -> None:
+        self.types = {
+            "connect": "🔗 ПОДКЛЮЧЕНИЕ",
+            "change_wallet_low": "🔄❌ ЗАМЕНА КОШЕЛЬКА",
+            "change_wallet_high": "🔄✅ ЗАМЕНА КОШЕЛЬКА",
+            "ban": "❌ БАН",
+            "unban": "✅ РАЗБАН",
+            "buy": "🟢 ПОКУПКА",
+            "sell": "🔴 ПРОДАЖА",
+            "blacklist": "🚫 ЧС",
+        }
+        self.bot = bot
+        self.settings = settings
+
+    async def notify_admin(
+        self,
+        type: str,
+        user: UserSchema,
+    ):
+        bool_switch = {
+            True: "➕",
+            False: "➖",
+        }
+        admin_message = (
+            f"{self.types[type]} \n\n"
+            f"C пресейла: {bool_switch[user.og]}\n"
+            f"В ЧС: {bool_switch[user.blacklisted]}\n"
+            f"Пользователь: @{user.username}\n"
+            f"Кошелек: {markdown.hcode(user.wallet)}\n"
+            f"Баланс: {user.balance} WON"
+        )
+        await self.bot.send_message(
+            chat_id=self.settings.ADMIN_CHANNEL_ID, text=admin_message
+        )
 
 
 class DeDustHelper:
@@ -64,11 +121,15 @@ class UtilMiddleware(BaseMiddleware):
         uow: UnitOfWork,
         settings: Settings,
         dedust_helper: DeDustHelper,
+        list_checker: ListChecker,
+        admin_notifier: AdminNotifier,
     ) -> None:
         self.uow = uow
         self.settings = settings
         self.ton_api_helper = ton_api_helper
         self.dedust_helper = dedust_helper
+        self.list_checker = list_checker
+        self.admin_notifier = admin_notifier
 
     async def __call__(
         self,
@@ -80,4 +141,6 @@ class UtilMiddleware(BaseMiddleware):
         data["dedust_helper"] = self.dedust_helper
         data["uow"] = self.uow
         data["settings"] = self.settings
+        data["list_checker"] = self.list_checker
+        data["admin_notifier"] = self.admin_notifier
         return await handler(event, data)

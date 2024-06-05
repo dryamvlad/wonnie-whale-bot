@@ -16,6 +16,7 @@ class UsersORM(Base):
     blacklisted: Mapped[bool] = mapped_column(Boolean, default=False)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     invite_link: Mapped[Optional[str]]
+    channel_invite_link: Mapped[Optional[str]]
     wallet: Mapped[str]
     og: Mapped[bool] = mapped_column(Boolean, default=False)
 
