@@ -205,8 +205,9 @@ async def main_menu_window(
             else:  # User reportedly has changed wallet with enough balance
                 if not user.blacklisted:
                     if user.wallet != wallet:
-                        notification_type = "change_wallet_low"
+                        notification_type = "change_wallet_high"
                         user.wallet = wallet
+                        user.balance = won_balance
                     else:
                         notification_type = "unban"
                     await admin_notifier.notify_admin(
@@ -243,6 +244,7 @@ async def main_menu_window(
             if user.wallet != wallet:
                 notification_type = "change_wallet_low"
                 user.wallet = wallet
+                user.balance = won_balance
             else:
                 notification_type = "ban"
             await admin_notifier.notify_admin(
