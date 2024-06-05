@@ -204,10 +204,16 @@ async def main_menu_window(
                 )
             else:  # User reportedly has changed wallet with enough balance
                 if not user.blacklisted:
+                    if user.wallet != wallet:
+                        notification_type = "change_wallet_low"
+                        user.wallet = wallet
+                    else:
+                        notification_type = "unban"
                     await admin_notifier.notify_admin(
-                        type="change_wallet_high" if user.wallet != wallet else "unban",
+                        type=notification_type,
                         user=user,
                     )
+
                     user.wallet = wallet
                     user.og = is_og
                     user.blacklisted = is_blacklisted
@@ -234,11 +240,16 @@ async def main_menu_window(
                     invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
         # User has changed wallet with insufficient balance
         elif user:
+            if user.wallet != wallet:
+                notification_type = "change_wallet_low"
+                user.wallet = wallet
+            else:
+                notification_type = "ban"
             await admin_notifier.notify_admin(
-                type="change_wallet_low" if user.wallet != wallet else "ban",
+                type=notification_type,
                 user=user,
             )
-            user.wallet = wallet
+
             user.balance = won_balance
             user.banned = True
             user.og = is_og
