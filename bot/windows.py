@@ -257,9 +257,10 @@ async def main_menu_window(
                 chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
             )
             await bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
-            await bot.revoke_chat_invite_link(
-                settings.CHANNEL_ID, user.channel_invite_link
-            )
+            if user.channel_invite_link:
+                await bot.revoke_chat_invite_link(
+                    settings.CHANNEL_ID, user.channel_invite_link
+                )
 
         text = (
             f"Подключенный кошелек {app_wallet.name}:\n\n"

@@ -114,9 +114,10 @@ async def task_update_users(
                 revoke_chat_res = await bot.revoke_chat_invite_link(
                     settings.CHAT_ID, user.invite_link
                 )
-                revoke_chan_res = await bot.revoke_chat_invite_link(
-                    settings.CHANNEL_ID, user.channel_invite_link
-                )
+                if user.channel_invite_link:
+                    revoke_chan_res = await bot.revoke_chat_invite_link(
+                        settings.CHANNEL_ID, user.channel_invite_link
+                    )
 
                 message_text = (
                     f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
