@@ -137,6 +137,13 @@ async def task_update_users(
                 #     f"+++ User with id {user.id} and wallet {user.wallet} has enough balance and unbanned"
                 # )
 
+                await bot.unban_chat_member(
+                    chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+                )
+                await bot.unban_chat_member(
+                    chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+                )
+                await asyncio.sleep(1)
                 invite_link = await bot.create_chat_invite_link(
                     chat_id=settings.CHAT_ID, name=user.username, member_limit=1
                 )
