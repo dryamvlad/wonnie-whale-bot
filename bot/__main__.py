@@ -78,7 +78,7 @@ async def task_update_users(
                 user.wallet, settings.WON_ADDR
             )
 
-            if not won_balance and not won_lp_balance:
+            if not won_balance:
                 continue
 
             won_balance = (
