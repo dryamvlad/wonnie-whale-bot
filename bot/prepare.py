@@ -7,6 +7,8 @@ from aiogram.enums import ParseMode
 from pytonapi import Tonapi
 from pytoniq import LiteBalancer
 
+from bot.user_manager import UserManager
+
 from .middlewares.util_middleware import (
     AdminNotifier,
     UtilMiddleware,
@@ -39,6 +41,7 @@ def setup_util_middleware() -> UtilMiddleware:
     dedust_helper = DeDustHelper(provider=provider)
     list_checker = ListChecker()
     admin_notifier = AdminNotifier(bot=bot, settings=settings)
+    user_manager = UserManager(bot=bot, admin_notifier=admin_notifier, uow=uow)
     return UtilMiddleware(
         ton_api_helper=ton_api_helper,
         dedust_helper=dedust_helper,
@@ -46,6 +49,7 @@ def setup_util_middleware() -> UtilMiddleware:
         settings=settings,
         list_checker=list_checker,
         admin_notifier=admin_notifier,
+        user_manager=user_manager,
     )
 
 

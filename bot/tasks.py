@@ -8,6 +8,8 @@ from aiogram.exceptions import (
 from pytonapi.exceptions import TONAPIError
 from pytoniq.liteclient import LiteServerError
 
+from bot.user_manager import UserManager
+
 from .middlewares.util_middleware import (
     AdminNotifier,
     TonApiHelper,
@@ -30,6 +32,7 @@ async def task_update_users():
     dedust_helper: DeDustHelper = util_middleware.dedust_helper
     list_checker: ListChecker = util_middleware.list_checker
     admin_notifier: AdminNotifier = util_middleware.admin_notifier
+    user_manager: UserManager = util_middleware.user_manager
 
     logging.error("TASK UPDATE START")
     try:
@@ -76,25 +79,10 @@ async def task_update_users():
             )
 
             if won_balance < threshold_balance and not user.banned:
-                user.banned = True
                 user.balance = won_balance
-                await UsersService().edit_user(
-                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
+                user = await user_manager.ban_user(
+                    user=user, history_entry=history_entry
                 )
-
-                ban_chat_res = await bot.ban_chat_member(
-                    chat_id=settings.CHAT_ID, user_id=user.tg_user_id
-                )
-                ban_chan_res = await bot.ban_chat_member(
-                    chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
-                )
-                revoke_chat_res = await bot.revoke_chat_invite_link(
-                    settings.CHAT_ID, user.invite_link
-                )
-                if user.channel_invite_link:
-                    revoke_chan_res = await bot.revoke_chat_invite_link(
-                        settings.CHANNEL_ID, user.channel_invite_link
-                    )
 
                 message_text = (
                     f"Мало WON на кошельке {markdown.hcode(user.wallet)}\n\n"
@@ -107,35 +95,18 @@ async def task_update_users():
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-                await admin_notifier.notify_admin(type="ban", user=user)
             elif user.banned and won_balance >= threshold_balance:
-                chat_unban_res = await bot.unban_chat_member(
-                    chat_id=settings.CHAT_ID, user_id=user.tg_user_id
-                )
-                chan_unban_res = await bot.unban_chat_member(
-                    chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
-                )
-                invite_link = await bot.create_chat_invite_link(
-                    chat_id=settings.CHAT_ID, name=user.username, member_limit=1
-                )
-                channel_invite_link = await bot.create_chat_invite_link(
-                    chat_id=settings.CHANNEL_ID, name=user.username, member_limit=1
+                user.balance = won_balance
+                user = await user_manager.unban_user(
+                    user=user, history_entry=history_entry
                 )
 
                 message_text = (
                     f"Кошелек {markdown.hcode(user.wallet)} пополнен, вы можете вернуться в коммьюнити!\n\n"
-                    f"Ссылка для вступления в чат: {invite_link.invite_link}\n\n"
-                    f"Ссылка для подписки на канал: {channel_invite_link.invite_link}"
+                    f"Ссылка для вступления в чат: {user.invite_link}\n\n"
+                    f"Ссылка для подписки на канал: {user.channel_invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
-                await admin_notifier.notify_admin(type="unban", user=user)
-
-                user.banned = False
-                user.balance = won_balance
-                user.invite_link = invite_link.invite_link
-                await UsersService().edit_user(
-                    uow=uow, user_id=user.id, user=user, history_entry=history_entry
-                )
             elif (
                 won_balance != user.balance and not user.banned and not user.blacklisted
             ):

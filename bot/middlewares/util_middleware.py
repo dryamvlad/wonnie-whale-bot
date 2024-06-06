@@ -16,6 +16,8 @@ from pytoniq.liteclient import LiteServerError
 
 from dedust import Asset, Factory, PoolType
 
+from bot.user_manager import UserManager
+
 
 class TonApiHelper:
     def __init__(self, ton_api: Tonapi):
@@ -126,6 +128,7 @@ class UtilMiddleware(BaseMiddleware):
         dedust_helper: DeDustHelper,
         list_checker: ListChecker,
         admin_notifier: AdminNotifier,
+        user_manager: UserManager,
     ) -> None:
         self.uow = uow
         self.settings = settings
@@ -133,6 +136,7 @@ class UtilMiddleware(BaseMiddleware):
         self.dedust_helper = dedust_helper
         self.list_checker = list_checker
         self.admin_notifier = admin_notifier
+        self.user_manager = user_manager
 
     async def __call__(
         self,
@@ -146,4 +150,5 @@ class UtilMiddleware(BaseMiddleware):
         data["settings"] = self.settings
         data["list_checker"] = self.list_checker
         data["admin_notifier"] = self.admin_notifier
+        data["user_manager"] = self.user_manager
         return await handler(event, data)

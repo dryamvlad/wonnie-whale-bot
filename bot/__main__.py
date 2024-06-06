@@ -21,13 +21,19 @@ from bot.prepare import bot, util_middleware, EXCLUDE_WALLETS
 from bot.tasks import task_update_users
 
 
+def exception_handler(loop, context):
+    exception = context["exception"]
+    message = context["message"]
+    if exception.__class__.__name__ != "IncompleteReadError":
+        logging.error(f"Task failed, msg={message}, exception={exception}")
+
+
 async def start_bot():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
     dp.update.middleware.register(ThrottlingMiddleware())
     dp.update.middleware.register(util_middleware)
-
     dp.update.middleware.register(
         AiogramTonConnectMiddleware(
             storage=ATCMemoryStorage(),
@@ -58,14 +64,13 @@ async def main():
 
 if __name__ == "__main__" or __name__ == "bot.__main__":
     loop = asyncio.new_event_loop()
+    loop.set_exception_handler(exception_handler)
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(main())
     except ConnectionError:
         pass
     except ClientPayloadError:
-        pass
-    except asyncio.exceptions.IncompleteReadError:
         pass
     except TelegramAPIError as e:
         logging.error(
