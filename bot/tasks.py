@@ -34,7 +34,6 @@ async def task_update_users():
     admin_notifier: AdminNotifier = util_middleware.admin_notifier
     user_manager: UserManager = util_middleware.user_manager
 
-    logging.error("TASK UPDATE START")
     try:
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
