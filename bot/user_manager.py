@@ -1,6 +1,5 @@
 from aiogram import Bot
 
-from bot.middlewares.util_middleware import AdminNotifier
 from bot.config import settings
 from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
@@ -9,9 +8,9 @@ from bot.db.schemas.schema_history import HistorySchemaAdd
 
 
 class UserManager:
-    def __init__(self, bot: Bot, admin_notifier: AdminNotifier, uow: UnitOfWork):
+    def __init__(self, bot: Bot, admin_notifier: "AdminNotifier", uow: UnitOfWork):
         self.bot: Bot = bot
-        self.admin_notifier: AdminNotifier = admin_notifier
+        self.admin_notifier: "AdminNotifier" = admin_notifier
         self.uow: UnitOfWork = uow
 
     async def ban_user(
