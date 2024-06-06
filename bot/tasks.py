@@ -140,8 +140,8 @@ async def task_update_users():
                 won_balance != user.balance and not user.banned and not user.blacklisted
             ):
                 buy_sell = "buy" if balance_delta > 0 else "sell"
-                await admin_notifier.notify_admin(type=buy_sell, user=user)
                 user.balance = won_balance
+                await admin_notifier.notify_admin(type=buy_sell, user=user)
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
