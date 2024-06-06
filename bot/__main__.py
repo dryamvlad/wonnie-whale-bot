@@ -55,6 +55,7 @@ async def task_update_users(
     list_checker: ListChecker,
     admin_notifier: AdminNotifier,
 ):
+    logging.error("TASK UPDATE START")
     try:
         users: list[UserSchema] = await UsersService().get_users(uow=uow)
         counter = 0
@@ -238,7 +239,6 @@ async def main():
         f"* * * * * */{settings.REFRESH_TIMEOUT}",
         func=task_update_users,
         args=(bot, uow, ton_api_helper, dedust_helper, list_checker, admin_notifier),
-        start=True,
     )
 
     await dp.start_polling(bot)
