@@ -22,6 +22,8 @@ from bot.tasks import task_update_users
 
 
 def exception_handler(loop, context):
+    if "exception" not in context:
+        return
     exception = context["exception"]
     message = context["message"]
     if exception.__class__.__name__ != "IncompleteReadError":
