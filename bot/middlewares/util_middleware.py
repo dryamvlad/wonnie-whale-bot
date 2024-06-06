@@ -115,7 +115,7 @@ class DeDustHelper:
                 return price / 1e9
             except LiteServerError:
                 await asyncio.sleep(1)
-                logging.warning("Restarting dedust get price on LiteServerError")
+                logging.error("Restarting dedust get price on LiteServerError")
                 continue
 
 
