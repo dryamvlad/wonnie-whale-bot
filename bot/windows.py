@@ -1,19 +1,16 @@
-import asyncio
 import logging
 from aiogram import Bot
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import User, ChatMemberMember, Chat
-from aiogram.types import InlineKeyboardButton as Button
-from aiogram.types import InlineKeyboardMarkup as Markup
 from aiogram.utils import markdown
 from aiogram.exceptions import TelegramAPIError
 
 from aiogram_tonconnect import ATCManager
 from aiogram_tonconnect.tonconnect.models import AccountWallet, AppWallet
 
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import NoResultFound
 
-from bot.db.schemas.schema_users import UserSchema, UserSchemaAdd
+from bot.db.schemas.schema_users import UserSchemaAdd
 from bot.db.schemas.schema_history import HistorySchemaAdd
 from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
@@ -25,53 +22,21 @@ from bot.config import Settings
 
 from pytoniq_core import Address
 
-from bot.util_middleware import AdminNotifier, ListChecker, TonApiHelper, DeDustHelper
+from bot.middlewares.util_middleware import (
+    AdminNotifier,
+    ListChecker,
+    TonApiHelper,
+    DeDustHelper,
+)
 
 
 # Define a state group for the user with two states
 class UserState(StatesGroup):
-    select_language = State()
     main_menu = State()
-    send_amount_ton = State()
-    transaction_info = State()
 
 
 async def empty_window(event_from_user: User, atc_manager: ATCManager, **_) -> None:
     pass
-
-
-async def select_language_window(
-    event_from_user: User, atc_manager: ATCManager, **_
-) -> None:
-    """
-    Displays the language selection window.
-
-    :param event_from_user: Telegram user object from middleware.
-    :param atc_manager: ATCManager instance for managing TON Connect integration.
-    :param _: Unused data from the middleware.
-    :return: None
-    """
-    # Code for generating text based on the user's language
-    text = (
-        f"Привет, {markdown.hbold(event_from_user.full_name)}!\n\n" "Выберите язык:"
-        if atc_manager.user.language_code == "ru"
-        else f"Hello, {markdown.hbold(event_from_user.full_name)}!\n\n"
-        f"Select language:"
-    )
-
-    # Code for creating inline keyboard with language options
-    reply_markup = Markup(
-        inline_keyboard=[
-            [
-                Button(text="Русский", callback_data="ru"),
-                Button(text="English", callback_data="en"),
-            ]
-        ]
-    )
-
-    # Sending the message and updating user state
-    await atc_manager._send_message(text, reply_markup=reply_markup)
-    await atc_manager.state.set_state(UserState.select_language)
 
 
 async def main_menu_window(
@@ -151,6 +116,7 @@ async def main_menu_window(
             won_balance = (
                 (won_balance + won_lp_balance) if won_lp_balance else won_balance
             )
+            new_user.balance = won_balance
             await admin_notifier.notify_admin(type="connect", user=new_user)
 
         existing_member = await bot.get_chat_member(
@@ -296,54 +262,3 @@ async def main_menu_window(
         logging.error(
             f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
         )
-
-
-async def send_amount_ton_window(atc_manager: ATCManager, **_) -> None:
-    """
-    Displays the window for sending TON.
-
-    :param atc_manager: ATCManager instance for managing TON Connect integration.
-    :param _: Unused data from the middleware.
-    :return: None
-    """
-    # Determine text based on user's language
-    text = (
-        "Сколько TON вы хотите отправить?"
-        if atc_manager.user.language_code == "ru"
-        else "How much TON do you want to send?"
-    )
-    button_text = "‹ Назад" if atc_manager.user.language_code == "ru" else "‹ Back"
-    reply_markup = Markup(
-        inline_keyboard=[[Button(text=button_text, callback_data="back")]]
-    )
-
-    # Send the message and update user state
-    await atc_manager._send_message(text, reply_markup=reply_markup)
-    await atc_manager.state.set_state(UserState.send_amount_ton)
-
-
-async def transaction_info_windows(atc_manager: ATCManager, boc: str, **_) -> None:
-    """
-    Displays the transaction information window.
-
-    :param atc_manager: ATCManager instance for managing TON Connect integration.
-    :param boc: The BOC (Bag of Cells) representing the transaction.
-    :param _: Unused data from the middleware.
-    :return: None
-    """
-    # Determine text based on user's language and show transaction details
-    text = (
-        "Транзакция успешно отправлена!\n\n" f"boc:\n{boc}"
-        if atc_manager.user.language_code == "ru"
-        else "Transaction successfully sent!\n\n" f"boc:\n{boc}"
-    )
-    button_text = (
-        "‹ На главную" if atc_manager.user.language_code == "ru" else "‹ Go to main"
-    )
-    reply_markup = Markup(
-        inline_keyboard=[[Button(text=button_text, callback_data="go_to_main")]]
-    )
-
-    # Send the message and update user state
-    await atc_manager._send_message(text, reply_markup=reply_markup)
-    await atc_manager.state.set_state(UserState.transaction_info)

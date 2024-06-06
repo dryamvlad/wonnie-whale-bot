@@ -94,6 +94,8 @@ class DeDustHelper:
         self.provider = provider
 
     async def get_jetton_price(self, jetton_addr: str):
+        await self.provider.start_up()
+
         TON = Asset.native()
         WON = Asset.jetton(jetton_addr)
 
@@ -107,6 +109,7 @@ class DeDustHelper:
                         asset_in=WON, amount_in=int(1 * 1e9), provider=self.provider
                     )
                 )["amount_out"]
+                await self.provider.close_all()
                 return price / 1e9
             except LiteServerError:
                 await asyncio.sleep(1)

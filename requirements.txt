@@ -9,6 +9,6 @@ pydantic-settings
 asyncpg
 greenlet
 alembic
-aiocron
+apscheduler
 black
 dedust
