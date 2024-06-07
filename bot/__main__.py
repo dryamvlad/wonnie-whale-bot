@@ -27,7 +27,7 @@ def exception_handler(loop, context):
     exception = context["exception"]
     message = context["message"]
     if exception.__class__.__name__ != "IncompleteReadError":
-        logging.error(f"Task failed, msg={message}, exception={exception}")
+        logging.error(f"Exception {exception.__class__.__name__} msg={exception}")
 
 
 async def start_bot():

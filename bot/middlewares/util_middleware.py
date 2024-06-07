@@ -100,12 +100,13 @@ class DeDustHelper:
 
         TON = Asset.native()
         WON = Asset.jetton(jetton_addr)
-
-        pool = await Factory.get_pool(
-            pool_type=PoolType.VOLATILE, assets=[TON, WON], provider=self.provider
-        )
         while True:
             try:
+                pool = await Factory.get_pool(
+                    pool_type=PoolType.VOLATILE,
+                    assets=[TON, WON],
+                    provider=self.provider,
+                )
                 price = (
                     await pool.get_estimated_swap_out(
                         asset_in=WON, amount_in=int(1 * 1e9), provider=self.provider
@@ -117,6 +118,8 @@ class DeDustHelper:
                 await asyncio.sleep(1)
                 logging.error("Restarting dedust get price on LiteServerError")
                 continue
+            except TimeoutError:
+                return 0
 
 
 class UtilMiddleware(BaseMiddleware):
