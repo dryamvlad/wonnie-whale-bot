@@ -111,7 +111,9 @@ async def task_update_users():
             ):
                 buy_sell = "buy" if balance_delta > 0 else "sell"
                 user.balance = won_balance
-                await admin_notifier.notify_admin(type=buy_sell, user=user)
+                await admin_notifier.notify_admin(
+                    type=buy_sell, user=user, sum=balance_delta
+                )
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )

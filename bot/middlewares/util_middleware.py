@@ -69,22 +69,20 @@ class AdminNotifier:
         self.bot = bot
         self.settings = settings
 
-    async def notify_admin(
-        self,
-        type: str,
-        user: UserSchema,
-    ):
+    async def notify_admin(self, type: str, user: UserSchema, sum: int = None):
         bool_switch = {
             True: "➕",
             False: "➖",
         }
+        sum_str = f"Сумма: {sum} WON" if type in ["buy", "sell"] else ""
         admin_message = (
             f"{self.types[type]} \n\n"
             f"C пресейла: {bool_switch[user.og]}\n"
             f"В ЧС: {bool_switch[user.blacklisted]}\n"
             f"Пользователь: @{user.username}\n"
             f"Кошелек: {markdown.hcode(user.wallet)}\n"
-            f"Баланс: {user.balance} WON"
+            f"Баланс: {user.balance} WON\n"
+            f"{sum_str}"
         )
         await self.bot.send_message(
             chat_id=self.settings.ADMIN_CHANNEL_ID, text=admin_message
@@ -116,7 +114,7 @@ class DeDustHelper:
                 return price / 1e9
             except LiteServerError:
                 await asyncio.sleep(1)
-                logging.error("Restarting dedust get price on LiteServerError")
+                logging.error("Retrying price fetch")
                 continue
             except TimeoutError:
                 return 0
