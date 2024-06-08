@@ -33,7 +33,7 @@ class TonApiHelper:
             if curr_jetton_addr == jetton_addr:
                 return int(jetton_balance)
 
-        return None
+        return 0
 
 
 class ListChecker:

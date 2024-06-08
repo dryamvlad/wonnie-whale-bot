@@ -96,12 +96,11 @@ async def main_menu_window(
         username = user_chat.username if user_chat.username else invite_link_name
 
         wallet = Address(account_wallet.address.hex_address).to_str()
-        won_balance = await ton_api_helper.get_jetton_balance(
-            account_wallet.address, settings.WON_ADDR
-        )
+        won_balance = await ton_api_helper.get_jetton_balance(wallet, settings.WON_ADDR)
         won_lp_balance = await ton_api_helper.get_jetton_balance(
             wallet, settings.WON_LP_ADDR
         )
+        won_balance = won_balance + won_lp_balance
 
         new_user = UserSchemaAdd(
             username=username,
@@ -115,13 +114,7 @@ async def main_menu_window(
             invite_link="",
             channel_invite_link="",
         )
-
-        if won_balance:
-            won_balance = (
-                (won_balance + won_lp_balance) if won_lp_balance else won_balance
-            )
-            new_user.balance = won_balance
-            await admin_notifier.notify_admin(type="connect", user=new_user)
+        await admin_notifier.notify_admin(type="connect", user=new_user)
 
         existing_member = await bot.get_chat_member(
             chat_id=settings.CHAT_ID, user_id=user_chat.id
@@ -143,20 +136,27 @@ async def main_menu_window(
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
+            user.og = is_og
+            user.balance = won_balance
             history_entry.user_id = user.id
             history_entry.balance_delta = won_balance - user.balance
         except NoResultFound:
             user = None
 
-        if won_balance and won_balance >= threshold_balance:
+        if won_balance >= threshold_balance:
             invite_link_text = "Вы уже в чате.\n\n"
             channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
+
             if not is_blacklisted:
                 if not is_in_chat:
                     invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
                     )
                     invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+                    if user:
+                        user.invite_link = invite_link.invite_link
+                    else:
+                        new_user.invite_link = invite_link.invite_link
                 if not is_in_channel:
                     channel_invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHANNEL_ID,
@@ -166,17 +166,15 @@ async def main_menu_window(
                     channel_invite_link_text = (
                         f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
                     )
+                    if user:
+                        user.channel_invite_link = channel_invite_link.invite_link
+                    else:
+                        new_user.channel_invite_link = channel_invite_link.invite_link
             else:
                 invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
                 channel_invite_link_text = ""
 
             if not user:
-                new_user.invite_link = (
-                    invite_link.invite_link if not is_blacklisted else ""
-                )
-                new_user.channel_invite_link = (
-                    channel_invite_link.invite_link if not is_blacklisted else ""
-                )
                 await UsersService().add_user(
                     uow=uow,
                     user=new_user,
@@ -186,16 +184,9 @@ async def main_menu_window(
                     if user.wallet != wallet:
                         notification_type = "change_wallet_high"
                         user.wallet = wallet
-                        user.balance = won_balance
                     else:
                         notification_type = "unban"
                         history_entry = None
-
-                    user.og = is_og
-                    user.blacklisted = is_blacklisted
-                    user.balance = won_balance
-                    user.invite_link = invite_link.invite_link
-                    user.channel_invite_link = channel_invite_link.invite_link
 
                     user_manager.unban_user(
                         user=user,
@@ -209,14 +200,9 @@ async def main_menu_window(
             if user.wallet != wallet:
                 notification_type = "change_wallet_low"
                 user.wallet = wallet
-                user.balance = won_balance
             else:
                 notification_type = "ban"
                 history_entry = None
-
-            user.balance = won_balance
-            user.og = is_og
-            user.blacklisted = is_blacklisted
 
             user_manager.ban_user(
                 user=user,
