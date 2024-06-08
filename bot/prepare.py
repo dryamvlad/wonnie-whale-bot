@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 from pytonapi import Tonapi
 from pytoniq import LiteBalancer
 
-from bot.user_manager import UserManager
+from bot.utils.user_manager import UserManager
 
 from .middlewares.util_middleware import (
     AdminNotifier,

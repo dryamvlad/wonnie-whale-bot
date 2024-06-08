@@ -18,6 +18,7 @@ class UserManager:
         user: UserSchema,
         history_entry: HistorySchemaAdd,
         notify_admin: bool = True,
+        notification_type: str = "ban",
     ) -> UserSchema:
         user.banned = True
         await UsersService().edit_user(
@@ -37,7 +38,7 @@ class UserManager:
             )
 
         if notify_admin:
-            await self.admin_notifier.notify_admin(type="ban", user=user)
+            await self.admin_notifier.notify_admin(type=notification_type, user=user)
 
         return user
 
@@ -46,6 +47,7 @@ class UserManager:
         user: UserSchema,
         history_entry: HistorySchemaAdd,
         notify_admin: bool = True,
+        notification_type: str = "unban",
     ) -> UserSchema:
         user.banned = False
         await self.bot.unban_chat_member(
@@ -54,16 +56,18 @@ class UserManager:
         await self.bot.unban_chat_member(
             chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
         )
-        user.invite_link = await self.bot.create_chat_invite_link(
-            chat_id=settings.CHAT_ID, name=user.username, member_limit=1
-        )
-        user.channel_invite_link = await self.bot.create_chat_invite_link(
-            chat_id=settings.CHANNEL_ID, name=user.username, member_limit=1
-        )
+        if not user.invite_link:
+            user.invite_link = await self.bot.create_chat_invite_link(
+                chat_id=settings.CHAT_ID, name=user.username, member_limit=1
+            )
+        if not user.channel_invite_link:
+            user.channel_invite_link = await self.bot.create_chat_invite_link(
+                chat_id=settings.CHANNEL_ID, name=user.username, member_limit=1
+            )
 
         await UsersService().edit_user(
             uow=self.uow, user_id=user.id, user=user, history_entry=history_entry
         )
 
         if notify_admin:
-            await self.admin_notifier.notify_admin(type="unban", user=user)
+            await self.admin_notifier.notify_admin(type=notification_type, user=user)

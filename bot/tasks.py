@@ -8,7 +8,7 @@ from aiogram.exceptions import (
 from pytonapi.exceptions import TONAPIError
 from pytoniq.liteclient import LiteServerError
 
-from bot.user_manager import UserManager
+from bot.utils.user_manager import UserManager
 
 from .middlewares.util_middleware import (
     AdminNotifier,

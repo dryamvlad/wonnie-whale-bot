@@ -16,7 +16,7 @@ from pytoniq.liteclient import LiteServerError
 
 from dedust import Asset, Factory, PoolType
 
-from bot.user_manager import UserManager
+from bot.utils.user_manager import UserManager
 
 
 class TonApiHelper:
@@ -114,9 +114,9 @@ class DeDustHelper:
                 return price / 1e9
             except LiteServerError:
                 await asyncio.sleep(1)
-                logging.error("Retrying price fetch")
                 continue
             except TimeoutError:
+                logging.error("DeDust TimeOut: 0 price")
                 return 0
 
 

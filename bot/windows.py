@@ -28,6 +28,7 @@ from bot.middlewares.util_middleware import (
     TonApiHelper,
     DeDustHelper,
 )
+from bot.utils.user_manager import UserManager
 
 
 # Define a state group for the user with two states
@@ -49,6 +50,7 @@ async def main_menu_window(
     dedust_helper: DeDustHelper,
     list_checker: ListChecker,
     admin_notifier: AdminNotifier,
+    user_manager: UserManager,
     **_,
 ) -> None:
     """
@@ -76,6 +78,8 @@ async def main_menu_window(
         await bot.delete_message(
             message_id=state_data.get("message_id"), chat_id=user_chat.id
         )
+
+        price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
         is_og = list_checker.check_og(user_chat.username)
         is_blacklisted = list_checker.check_blacklist(user_chat.username)
@@ -128,10 +132,19 @@ async def main_menu_window(
         is_in_chat = isinstance(existing_member, ChatMemberMember)
         is_in_channel = isinstance(channel_existing_member, ChatMemberMember)
 
+        history_entry = HistorySchemaAdd(
+            user_id=0,
+            balance_delta=0,
+            price=-1.0,
+            wallet=wallet,
+        )
+
         try:
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
+            history_entry.user_id = user.id
+            history_entry.balance_delta = won_balance - user.balance
         except NoResultFound:
             user = None
 
@@ -176,32 +189,18 @@ async def main_menu_window(
                         user.balance = won_balance
                     else:
                         notification_type = "unban"
-                    await admin_notifier.notify_admin(
-                        type=notification_type,
-                        user=user,
-                    )
+                        history_entry = None
 
-                    user.wallet = wallet
                     user.og = is_og
                     user.blacklisted = is_blacklisted
                     user.balance = won_balance
-                    user.banned = False
                     user.invite_link = invite_link.invite_link
                     user.channel_invite_link = channel_invite_link.invite_link
-                    history_entry = HistorySchemaAdd(
-                        user_id=user.id,
-                        balance_delta=0,
-                        price=-1.0,
-                        wallet=wallet,
-                    )
-                    await UsersService().edit_user(
-                        uow=uow, user_id=user.id, user=user, history_entry=history_entry
-                    )
-                    await bot.unban_chat_member(
-                        chat_id=settings.CHAT_ID, user_id=user.tg_user_id
-                    )
-                    await bot.unban_chat_member(
-                        chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+
+                    user_manager.unban_user(
+                        user=user,
+                        history_entry=history_entry,
+                        notification_type=notification_type,
                     )
                 else:
                     invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
@@ -213,33 +212,17 @@ async def main_menu_window(
                 user.balance = won_balance
             else:
                 notification_type = "ban"
-            await admin_notifier.notify_admin(
-                type=notification_type,
-                user=user,
-            )
+                history_entry = None
 
             user.balance = won_balance
-            user.banned = True
             user.og = is_og
             user.blacklisted = is_blacklisted
-            history_entry = HistorySchemaAdd(
-                user_id=user.id,
-                balance_delta=won_balance - user.balance,
-                price=-1.0,
-                wallet=wallet,
+
+            user_manager.ban_user(
+                user=user,
+                history_entry=history_entry,
+                notification_type=notification_type,
             )
-            await UsersService().edit_user(
-                uow=uow, user_id=user.id, user=user, history_entry=history_entry
-            )
-            await bot.ban_chat_member(chat_id=settings.CHAT_ID, user_id=user.tg_user_id)
-            await bot.ban_chat_member(
-                chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
-            )
-            await bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
-            if user.channel_invite_link:
-                await bot.revoke_chat_invite_link(
-                    settings.CHANNEL_ID, user.channel_invite_link
-                )
 
         text = (
             f"Подключенный кошелек {app_wallet.name}:\n\n"
@@ -248,12 +231,6 @@ async def main_menu_window(
             f"{invite_link_text}\n"
             f"{channel_invite_link_text}"
         )
-        try:
-            price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
-        except LiteServerError:
-            price = 0
-            logging.error("Failed to get price from dedust")
-
         kb = await kb_buy_won(settings=settings, price=price, disconnect=True)
 
         await bot.send_message(chat_id=user_chat.id, text=text, reply_markup=kb)
