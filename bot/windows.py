@@ -148,6 +148,7 @@ async def main_menu_window(
             channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
 
             if not is_blacklisted:
+
                 if not is_in_chat:
                     invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
@@ -157,6 +158,7 @@ async def main_menu_window(
                         user.invite_link = invite_link.invite_link
                     else:
                         new_user.invite_link = invite_link.invite_link
+
                 if not is_in_channel:
                     channel_invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHANNEL_ID,
@@ -170,6 +172,7 @@ async def main_menu_window(
                         user.channel_invite_link = channel_invite_link.invite_link
                     else:
                         new_user.channel_invite_link = channel_invite_link.invite_link
+
             else:
                 invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
                 channel_invite_link_text = ""
@@ -188,7 +191,7 @@ async def main_menu_window(
                         notification_type = "unban"
                         history_entry = None
 
-                    user_manager.unban_user(
+                    await user_manager.unban_user(
                         user=user,
                         history_entry=history_entry,
                         notification_type=notification_type,
@@ -204,7 +207,7 @@ async def main_menu_window(
                 notification_type = "ban"
                 history_entry = None
 
-            user_manager.ban_user(
+            await user_manager.ban_user(
                 user=user,
                 history_entry=history_entry,
                 notification_type=notification_type,
