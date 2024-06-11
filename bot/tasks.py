@@ -135,3 +135,5 @@ async def task_update_users():
         logging.error(
             f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
         )
+    except Exception:
+        logging.error("Unknown exception in task_update_users()")
