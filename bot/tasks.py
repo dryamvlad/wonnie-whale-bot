@@ -46,8 +46,14 @@ async def task_update_users():
                 continue
             if is_blacklisted:
                 user.blacklisted = True
+                user_manager.ban_user(
+                    user=user,
+                    history_entry=HistorySchemaAdd(
+                        user_id=user.id, balance_delta=0, price=0, wallet=user.wallet
+                    ),
+                    notification_type="blacklist",
+                )
                 await UsersService().edit_user(uow=uow, user_id=user.id, user=user)
-                await admin_notifier.notify_admin(type="blacklist", user=user)
                 continue
 
             won_lp_balance = await ton_api_helper.get_jetton_balance(
@@ -60,9 +66,7 @@ async def task_update_users():
             if not won_balance:
                 continue
 
-            won_balance = (
-                won_balance + won_lp_balance if won_lp_balance else won_balance
-            )
+            won_balance += won_lp_balance
             balance_delta = won_balance - user.balance
 
             if user.og:

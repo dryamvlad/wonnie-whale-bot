@@ -115,8 +115,8 @@ class DeDustHelper:
             except LiteServerError:
                 await asyncio.sleep(1)
                 continue
-            except TimeoutError:
-                logging.error("DeDust TimeOut: 0 price")
+            except Exception:
+                logging.error("DeDust: 0 price")
                 return 0
 
 
