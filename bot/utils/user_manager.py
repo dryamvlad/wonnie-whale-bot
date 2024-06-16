@@ -1,3 +1,4 @@
+import time
 from aiogram import Bot
 
 from bot.config import settings
@@ -50,6 +51,7 @@ class UserManager:
         notification_type: str = "unban",
     ) -> UserSchema:
         user.banned = False
+        expire_date = int(time.time()) + 86400  # +1 day from current unix timestamp
         await self.bot.unban_chat_member(
             chat_id=settings.CHAT_ID, user_id=user.tg_user_id
         )
@@ -58,11 +60,17 @@ class UserManager:
         )
         if not user.invite_link:
             user.invite_link = await self.bot.create_chat_invite_link(
-                chat_id=settings.CHAT_ID, name=user.username, member_limit=1
+                chat_id=settings.CHAT_ID,
+                name=user.username,
+                member_limit=1,
+                expire_date=expire_date,
             )
         if not user.channel_invite_link:
             user.channel_invite_link = await self.bot.create_chat_invite_link(
-                chat_id=settings.CHANNEL_ID, name=user.username, member_limit=1
+                chat_id=settings.CHANNEL_ID,
+                name=user.username,
+                member_limit=1,
+                expire_date=expire_date,
             )
 
         await UsersService().edit_user(

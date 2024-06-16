@@ -29,6 +29,7 @@ from bot.middlewares.util_middleware import (
     DeDustHelper,
 )
 from bot.utils.user_manager import UserManager
+import time
 
 
 # Define a state group for the user with two states
@@ -102,20 +103,6 @@ async def main_menu_window(
         )
         won_balance = won_balance + won_lp_balance
 
-        new_user = UserSchemaAdd(
-            username=username,
-            balance=won_balance,
-            blacklisted=is_blacklisted,
-            og=is_og,
-            entry_balance=won_balance,
-            banned=False,
-            wallet=wallet,
-            tg_user_id=user_chat.id,
-            invite_link="",
-            channel_invite_link="",
-        )
-        await admin_notifier.notify_admin(type="connect", user=new_user)
-
         existing_member = await bot.get_chat_member(
             chat_id=settings.CHAT_ID, user_id=user_chat.id
         )
@@ -136,51 +123,67 @@ async def main_menu_window(
             user = await UsersService().get_user_by_tg_id(
                 uow=uow, tg_user_id=user_chat.id
             )
-            user.og = is_og
+            is_new_user = False
+            is_blacklisted = user.blacklisted
+            is_og = user.og
             user.balance = won_balance
             history_entry.user_id = user.id
             history_entry.balance_delta = won_balance - user.balance
+            user = None
         except NoResultFound:
             user = None
+            user = UserSchemaAdd(
+                username=username,
+                balance=won_balance,
+                blacklisted=is_blacklisted,
+                og=is_og,
+                entry_balance=won_balance,
+                banned=False,
+                wallet=wallet,
+                tg_user_id=user_chat.id,
+                invite_link="",
+                channel_invite_link="",
+            )
+            is_new_user = True
+
+        await admin_notifier.notify_admin(type="connect", user=user)
 
         if won_balance >= threshold_balance:
             invite_link_text = "Вы уже в чате.\n\n"
             channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
 
             if not is_blacklisted:
-
+                expire_date = (
+                    int(time.time()) + 86400
+                )  # +1 day from current unix timestamp
                 if not is_in_chat:
                     invite_link = await bot.create_chat_invite_link(
-                        chat_id=settings.CHAT_ID, name=invite_link_name, member_limit=1
+                        chat_id=settings.CHAT_ID,
+                        name=invite_link_name,
+                        member_limit=1,
+                        expire_date=expire_date,
                     )
                     invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
-                    if user:
-                        user.invite_link = invite_link.invite_link
-                    else:
-                        new_user.invite_link = invite_link.invite_link
-
+                    user.invite_link = invite_link.invite_link
                 if not is_in_channel:
                     channel_invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHANNEL_ID,
                         name=invite_link_name,
                         member_limit=1,
+                        expire_date=expire_date,
                     )
                     channel_invite_link_text = (
                         f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
                     )
-                    if user:
-                        user.channel_invite_link = channel_invite_link.invite_link
-                    else:
-                        new_user.channel_invite_link = channel_invite_link.invite_link
-
+                    user.channel_invite_link = channel_invite_link.invite_link
             else:
                 invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
                 channel_invite_link_text = ""
 
-            if not user:
+            if is_new_user:
                 await UsersService().add_user(
                     uow=uow,
-                    user=new_user,
+                    user=user,
                 )
             else:  # User reportedly has changed wallet with enough balance
                 if not user.blacklisted:
@@ -199,7 +202,7 @@ async def main_menu_window(
                 else:
                     invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
         # User has changed wallet with insufficient balance
-        elif user:
+        elif not is_new_user:
             if user.wallet != wallet:
                 notification_type = "change_wallet_low"
                 user.wallet = wallet
