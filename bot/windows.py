@@ -181,10 +181,14 @@ async def main_menu_window(
                         notification_type = "unban"
                         history_entry = None
 
+                    await user_manager.revoke_user_invite_links(user)
+                    user.invite_link = invite_link.invite_link
+                    user.channel_invite_link = channel_invite_link.invite_link
                     await user_manager.unban_user(
                         user=user,
                         history_entry=history_entry,
                         notification_type=notification_type,
+                        generate_new_invites=False,
                     )
                 else:
                     invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
