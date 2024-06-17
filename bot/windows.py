@@ -129,9 +129,7 @@ async def main_menu_window(
             user.balance = won_balance
             history_entry.user_id = user.id
             history_entry.balance_delta = won_balance - user.balance
-            user = None
         except NoResultFound:
-            user = None
             user = UserSchemaAdd(
                 username=username,
                 balance=won_balance,
