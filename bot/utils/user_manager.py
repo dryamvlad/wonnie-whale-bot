@@ -21,11 +21,6 @@ class UserManager:
         notify_admin: bool = True,
         notification_type: str = "ban",
     ) -> UserSchema:
-        user.banned = True
-        await UsersService().edit_user(
-            uow=self.uow, user_id=user.id, user=user, history_entry=history_entry
-        )
-
         await self.bot.ban_chat_member(
             chat_id=settings.CHAT_ID, user_id=user.tg_user_id
         )
@@ -37,6 +32,13 @@ class UserManager:
             await self.bot.revoke_chat_invite_link(
                 settings.CHANNEL_ID, user.channel_invite_link
             )
+
+        user.banned = True
+        user.invite_link = None
+        user.channel_invite_link = None
+        await UsersService().edit_user(
+            uow=self.uow, user_id=user.id, user=user, history_entry=history_entry
+        )
 
         if notify_admin:
             await self.admin_notifier.notify_admin(type=notification_type, user=user)
@@ -59,19 +61,21 @@ class UserManager:
             chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
         )
         if not user.invite_link:
-            user.invite_link = await self.bot.create_chat_invite_link(
+            invite = await self.bot.create_chat_invite_link(
                 chat_id=settings.CHAT_ID,
                 name=user.username,
                 member_limit=1,
                 expire_date=expire_date,
             )
+            user.invite_link = invite.invite_link
         if not user.channel_invite_link:
-            user.channel_invite_link = await self.bot.create_chat_invite_link(
+            invite_channel = await self.bot.create_chat_invite_link(
                 chat_id=settings.CHANNEL_ID,
                 name=user.username,
                 member_limit=1,
                 expire_date=expire_date,
             )
+            user.channel_invite_link = invite_channel.invite_link
 
         await UsersService().edit_user(
             uow=self.uow, user_id=user.id, user=user, history_entry=history_entry

@@ -98,7 +98,11 @@ async def task_update_users():
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-            elif user.banned and won_balance >= threshold_balance:
+            elif (
+                user.banned
+                and not user.blacklisted
+                and won_balance >= threshold_balance
+            ):
                 user.balance = won_balance
                 user = await user_manager.unban_user(
                     user=user, history_entry=history_entry
