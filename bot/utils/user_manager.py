@@ -60,6 +60,12 @@ class UserManager:
         await self.bot.unban_chat_member(
             chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
         )
+        if user.invite_link:
+            await self.bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
+        if user.channel_invite_link:
+            await self.bot.revoke_chat_invite_link(
+                settings.CHANNEL_ID, user.channel_invite_link
+            )
         if not user.invite_link:
             invite = await self.bot.create_chat_invite_link(
                 chat_id=settings.CHAT_ID,

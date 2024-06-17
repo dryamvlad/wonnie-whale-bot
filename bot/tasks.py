@@ -1,29 +1,26 @@
 import asyncio
 import logging
-from aiogram.utils import markdown
-from aiogram.exceptions import (
-    TelegramAPIError,
-)
 
+from aiogram.exceptions import TelegramAPIError
+from aiogram.utils import markdown
 from pytonapi.exceptions import TONAPIError
 from pytoniq.liteclient import LiteServerError
 
+from bot.config import settings
+from bot.db.schemas.schema_history import HistorySchemaAdd
+from bot.db.schemas.schema_users import UserSchema
+from bot.db.services.service_users import UsersService
+from bot.db.utils.unitofwork import UnitOfWork
+from bot.keyboards import kb_buy_won
+from bot.prepare import bot, util_middleware
 from bot.utils.user_manager import UserManager
 
 from .middlewares.util_middleware import (
     AdminNotifier,
-    TonApiHelper,
     DeDustHelper,
     ListChecker,
+    TonApiHelper,
 )
-from bot.config import settings
-from bot.db.utils.unitofwork import UnitOfWork
-from bot.db.services.service_users import UsersService
-from bot.db.schemas.schema_users import UserSchema
-from bot.db.schemas.schema_history import HistorySchemaAdd
-from bot.keyboards import kb_buy_won
-
-from bot.prepare import bot, util_middleware
 
 
 async def task_update_users():

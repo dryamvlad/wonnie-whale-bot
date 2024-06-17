@@ -1,35 +1,29 @@
 import logging
-from aiogram import Bot
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import User, ChatMemberMember, Chat
-from aiogram.utils import markdown
-from aiogram.exceptions import TelegramAPIError
+import time
 
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import Chat, ChatMemberMember, User
+from aiogram.utils import markdown
 from aiogram_tonconnect import ATCManager
 from aiogram_tonconnect.tonconnect.models import AccountWallet, AppWallet
-
+from pytoniq_core import Address
 from sqlalchemy.exc import NoResultFound
 
-from bot.db.schemas.schema_users import UserSchemaAdd
+from bot.config import Settings
 from bot.db.schemas.schema_history import HistorySchemaAdd
+from bot.db.schemas.schema_users import UserSchemaAdd
 from bot.db.services.service_users import UsersService
 from bot.db.utils.unitofwork import UnitOfWork
 from bot.keyboards import kb_buy_won
-
-from pytoniq.liteclient import LiteServerError
-
-from bot.config import Settings
-
-from pytoniq_core import Address
-
 from bot.middlewares.util_middleware import (
     AdminNotifier,
+    DeDustHelper,
     ListChecker,
     TonApiHelper,
-    DeDustHelper,
 )
 from bot.utils.user_manager import UserManager
-import time
 
 
 # Define a state group for the user with two states
@@ -82,17 +76,6 @@ async def main_menu_window(
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
-        is_og = list_checker.check_og(user_chat.username)
-        is_blacklisted = list_checker.check_blacklist(user_chat.username)
-
-        if is_og:
-            threshold_balance = settings.OG_THRESHOLD_BALANCE
-        else:
-            threshold_balance = settings.THRESHOLD_BALANCE
-
-        invite_link_text = f"Мало WON на балансе. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
-        channel_invite_link_text = ""
-
         invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
         username = user_chat.username if user_chat.username else invite_link_name
 
@@ -124,8 +107,6 @@ async def main_menu_window(
                 uow=uow, tg_user_id=user_chat.id
             )
             is_new_user = False
-            is_blacklisted = user.blacklisted
-            is_og = user.og
             user.balance = won_balance
             history_entry.user_id = user.id
             history_entry.balance_delta = won_balance - user.balance
@@ -133,8 +114,8 @@ async def main_menu_window(
             user = UserSchemaAdd(
                 username=username,
                 balance=won_balance,
-                blacklisted=is_blacklisted,
-                og=is_og,
+                blacklisted=list_checker.check_blacklist(user_chat.username),
+                og=list_checker.check_og(user_chat.username),
                 entry_balance=won_balance,
                 banned=False,
                 wallet=wallet,
@@ -146,11 +127,19 @@ async def main_menu_window(
 
         await admin_notifier.notify_admin(type="connect", user=user)
 
+        if user.og:
+            threshold_balance = settings.OG_THRESHOLD_BALANCE
+        else:
+            threshold_balance = settings.THRESHOLD_BALANCE
+
+        invite_link_text = f"Мало WON на балансе. Надо не меньше {markdown.hcode(threshold_balance)}\n\n"
+        channel_invite_link_text = ""
+
         if won_balance >= threshold_balance:
             invite_link_text = "Вы уже в чате.\n\n"
             channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
 
-            if not is_blacklisted:
+            if not user.blacklisted:
                 expire_date = (
                     int(time.time()) + 86400
                 )  # +1 day from current unix timestamp
@@ -227,5 +216,8 @@ async def main_menu_window(
         await atc_manager.state.set_state(UserState.main_menu)
     except TelegramAPIError as e:
         logging.error(
-            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+            "TelegramAPIError:%s(%s) — %s",
+            e.method.__class__.__name__,
+            e.method,
+            e.message,
         )
