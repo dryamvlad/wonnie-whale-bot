@@ -163,7 +163,7 @@ async def main_menu_window(
                         member_limit=1,
                         expire_date=expire_date,
                     )
-                    invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n\n"
+                    invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n"
                     user.invite_link = invite_link.invite_link
                 if not is_in_channel:
                     channel_invite_link = await bot.create_chat_invite_link(
@@ -173,7 +173,7 @@ async def main_menu_window(
                         expire_date=expire_date,
                     )
                     channel_invite_link_text = (
-                        f"Подписаться на канал: {channel_invite_link.invite_link}\n\n"
+                        f"Подписаться на канал: {channel_invite_link.invite_link}\n"
                     )
                     user.channel_invite_link = channel_invite_link.invite_link
             else:
