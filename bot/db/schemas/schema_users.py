@@ -4,11 +4,11 @@ from sqlalchemy import BigInteger
 
 
 class UserSchemaAdd(BaseModel):
-    username: str
+    username: Optional[str] = None
     balance: int
     blacklisted: bool
     banned: bool
-    invite_link: str
+    invite_link: Optional[str] = None
     channel_invite_link: Optional[str] = None
     wallet: str
     tg_user_id: int
