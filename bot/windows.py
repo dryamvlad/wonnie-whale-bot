@@ -76,7 +76,7 @@ async def main_menu_window(
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
-        invite_link_name = f"{user_chat.first_name} {user_chat.last_name}"
+        invite_link_name = f"{user_chat.first_name} {user_chat.last_name if user_chat.last_name else ''}"
         username = user_chat.username if user_chat.username else invite_link_name
 
         wallet = Address(account_wallet.address.hex_address).to_str()

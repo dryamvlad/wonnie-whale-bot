@@ -1,5 +1,6 @@
 import time
 from aiogram import Bot
+from aiogram.types import ChatMemberMember
 
 from bot.config import settings
 from bot.db.services.service_users import UsersService
@@ -41,6 +42,30 @@ class UserManager:
             await self.admin_notifier.notify_admin(type=notification_type, user=user)
 
         return user
+
+    async def revoke_old_user_invite_links(self, user: UserSchema) -> UserSchema:
+        """Revokes the invite links for a user if the user is already in the chat/channel."""
+        if user.invite_link:
+            existing_member = await self.bot.get_chat_member(
+                chat_id=settings.CHAT_ID, user_id=user.tg_user_id
+            )
+            if isinstance(existing_member, ChatMemberMember):
+                await self.bot.revoke_chat_invite_link(
+                    settings.CHAT_ID, user.invite_link
+                )
+                user.invite_link = None
+
+        if user.channel_invite_link:
+            existing_member = await self.bot.get_chat_member(
+                chat_id=settings.CHANNEL_ID, user_id=user.tg_user_id
+            )
+            if isinstance(existing_member, ChatMemberMember):
+                await self.bot.revoke_chat_invite_link(
+                    settings.CHANNEL_ID, user.channel_invite_link
+                )
+                user.channel_invite_link = None
+
+        await UsersService().edit_user(uow=self.uow, user_id=user.id, user=user)
 
     async def revoke_user_invite_links(self, user: UserSchema) -> UserSchema:
         """Revokes the invite links for a user if they exist."""

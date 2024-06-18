@@ -43,14 +43,14 @@ async def task_update_users():
                 continue
             if is_blacklisted:
                 user.blacklisted = True
-                user_manager.ban_user(
+                user = await user_manager.revoke_user_invite_links(user)
+                await user_manager.ban_user(
                     user=user,
                     history_entry=HistorySchemaAdd(
                         user_id=user.id, balance_delta=0, price=0, wallet=user.wallet
                     ),
                     notification_type="blacklist",
                 )
-                await UsersService().edit_user(uow=uow, user_id=user.id, user=user)
                 continue
 
             won_lp_balance = await ton_api_helper.get_jetton_balance(
@@ -122,19 +122,28 @@ async def task_update_users():
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
+            elif (
+                not user.banned
+                and not user.blacklisted
+                and won_balance >= threshold_balance
+            ):
+                await user_manager.revoke_old_user_invite_links(user)
 
             counter = counter + 1
             if counter % 99 == 0:
                 await asyncio.sleep(1)  # to avoid TonApi rate limit
     except LiteServerError:
         pass
-    except TONAPIError as e:
-        logging.error(f"TONAPIError")
-    except TimeoutError as e:
+    except TONAPIError:
+        logging.error("TONAPIError")
+    except TimeoutError:
         logging.error("TimeoutError")
     except TelegramAPIError as e:
         logging.error(
-            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+            "TelegramAPIError:%s(%s) — %s",
+            e.method.__class__.__name__,
+            e.method,
+            e.message,
         )
-    # except Exception:
-    #     logging.error("Unknown exception in task_update_users()")
+    except Exception as e:
+        logging.error("Exception in task_update_users(): %s", e)
