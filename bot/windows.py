@@ -151,7 +151,6 @@ async def main_menu_window(
                         expire_date=expire_date,
                     )
                     invite_link_text = f"Вступить в чат: {invite_link.invite_link}\n"
-                    user.invite_link = invite_link.invite_link
                 if not is_in_channel:
                     channel_invite_link = await bot.create_chat_invite_link(
                         chat_id=settings.CHANNEL_ID,
@@ -162,12 +161,13 @@ async def main_menu_window(
                     channel_invite_link_text = (
                         f"Подписаться на канал: {channel_invite_link.invite_link}\n"
                     )
-                    user.channel_invite_link = channel_invite_link.invite_link
             else:
                 invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
                 channel_invite_link_text = ""
 
             if is_new_user:
+                user.invite_link = invite_link.invite_link
+                user.channel_invite_link = channel_invite_link.invite_link
                 await UsersService().add_user(
                     uow=uow,
                     user=user,
@@ -182,6 +182,7 @@ async def main_menu_window(
                         history_entry = None
 
                     await user_manager.revoke_user_invite_links(user)
+                    logging.error("UNBAN in windows.py: %s", user.username)
                     user.invite_link = invite_link.invite_link
                     user.channel_invite_link = channel_invite_link.invite_link
                     await user_manager.unban_user(
