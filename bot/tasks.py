@@ -60,9 +60,6 @@ async def task_update_users():
                 user.wallet, settings.WON_ADDR
             )
 
-            if not won_balance:
-                continue
-
             won_balance += won_lp_balance
             balance_delta = won_balance - user.balance
 
@@ -80,6 +77,7 @@ async def task_update_users():
 
             if won_balance < threshold_balance and not user.banned:
                 user.balance = won_balance
+                logging.error("USER: %s, balance: %s", user.username, won_balance)
                 user = await user_manager.ban_user(
                     user=user, history_entry=history_entry
                 )
