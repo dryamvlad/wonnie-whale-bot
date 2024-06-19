@@ -25,8 +25,8 @@ class TonApiHelper:
     async def get_jetton_balance(self, wallet: str, jetton_addr: str) -> int:
         try:
             jettons_balances = self.ton_api.accounts.get_jettons_balances(wallet)
-        except Exception as e:
-            logging.error("Exception in get_jetton_balance(): %s", e)
+        except Exception:
+            logging.error("Exception in get_jetton_balance()")
             return -1
 
         for balance in jettons_balances.balances:
