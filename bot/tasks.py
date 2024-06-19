@@ -78,6 +78,7 @@ async def task_update_users():
                 wallet=user.wallet,
             )
 
+            # user has low balance and not banned? ban and notify both users and admins
             if won_balance < threshold_balance and not user.banned:
                 user.balance = won_balance
                 logging.error("USER: %s, balance: %s", user.username, won_balance)
@@ -96,11 +97,8 @@ async def task_update_users():
                     text=message_text,
                     reply_markup=reply_markup,
                 )
-            elif (
-                user.banned
-                and not user.blacklisted
-                and won_balance >= threshold_balance
-            ):
+            # user is banned and has enough balance? unban and notify both user and admins
+            elif user.banned and won_balance >= threshold_balance:
                 user.balance = won_balance
                 user = await user_manager.unban_user(
                     user=user, history_entry=history_entry
@@ -112,9 +110,8 @@ async def task_update_users():
                     f"Ссылка для подписки на канал: {user.channel_invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
-            elif (
-                won_balance != user.balance and not user.banned and not user.blacklisted
-            ):
+            # user is not banned/blacklisted but balance changed? send buy/sell notification to admins
+            elif won_balance != user.balance and not user.banned:
                 buy_sell = "buy" if balance_delta > 0 else "sell"
                 user.balance = won_balance
                 await admin_notifier.notify_admin(
@@ -123,6 +120,7 @@ async def task_update_users():
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
+            # user is not banned/blacklisted and has enough balance? revoke old invite links
             elif (
                 not user.banned
                 and not user.blacklisted

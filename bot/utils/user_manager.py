@@ -119,3 +119,5 @@ class UserManager:
 
         if notify_admin:
             await self.admin_notifier.notify_admin(type_=notification_type, user=user)
+
+        return user
