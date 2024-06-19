@@ -39,7 +39,7 @@ class UserManager:
         )
 
         if notify_admin:
-            await self.admin_notifier.notify_admin(type=notification_type, user=user)
+            await self.admin_notifier.notify_admin(type_=notification_type, user=user)
 
         return user
 
@@ -118,4 +118,4 @@ class UserManager:
         )
 
         if notify_admin:
-            await self.admin_notifier.notify_admin(type=notification_type, user=user)
+            await self.admin_notifier.notify_admin(type_=notification_type, user=user)
