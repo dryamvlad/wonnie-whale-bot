@@ -110,7 +110,7 @@ async def task_update_users():
                     f"Ссылка для подписки на канал: {user.channel_invite_link}"
                 )
                 await bot.send_message(chat_id=user.tg_user_id, text=message_text)
-            # user is not banned/blacklisted but balance changed? send buy/sell notification to admins
+            # user is not banned but balance changed? send buy/sell notification to admins
             elif won_balance != user.balance and not user.banned:
                 buy_sell = "buy" if balance_delta > 0 else "sell"
                 user.balance = won_balance

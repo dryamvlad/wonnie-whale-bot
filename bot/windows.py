@@ -1,5 +1,6 @@
 import logging
 import time
+import traceback
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
@@ -144,8 +145,10 @@ async def main_menu_window(
         channel_invite_link_text = ""
 
         if won_balance >= threshold_balance:
-            invite_link_text = "Вы уже в чате.\n\n"
-            channel_invite_link_text = "Вы уже подписаны на канал.\n\n"
+            invite_link_text = f"Чат: {markdown.hitalic('Вы уже в чате')}.\n\n"
+            channel_invite_link_text = (
+                f"Канал: {markdown.hitalic('Вы уже подписаны на канал')}.\n\n"
+            )
 
             if not user.blacklisted:
                 expire_date = (
@@ -181,26 +184,35 @@ async def main_menu_window(
                     user=user,
                 )
             else:  # User reportedly has changed wallet with enough balance
-                if not user.blacklisted:
-                    if user.wallet != wallet:
-                        notification_type = "change_wallet_high"
-                        user.wallet = wallet
-                    else:
-                        notification_type = "unban"
-                        history_entry = None
-
-                    await user_manager.revoke_user_invite_links(user)
-                    logging.error("UNBAN in windows.py: %s", user.username)
-                    user.invite_link = invite_link.invite_link or None
-                    user.channel_invite_link = channel_invite_link.invite_link or None
-                    await user_manager.unban_user(
-                        user=user,
-                        history_entry=history_entry,
-                        notification_type=notification_type,
-                        generate_new_invites=False,
-                    )
+                if is_in_chat and is_in_channel:
+                    pass
                 else:
-                    invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
+                    if user.blacklisted:
+                        invite_link_text = "Вам запрещен вход в коммьюнити.\n\n"
+                    else:
+                        if user.wallet != wallet:
+                            notification_type = "change_wallet_high"
+                            user.wallet = wallet
+                        else:
+                            notification_type = "unban"
+                            history_entry = None
+
+                        await user_manager.revoke_user_invite_links(user)
+                        logging.error("UNBAN in windows.py: %s", user.username)
+                        user.invite_link = (
+                            invite_link.invite_link if not is_in_chat else None
+                        )
+                        user.channel_invite_link = (
+                            channel_invite_link.invite_link
+                            if not is_in_channel
+                            else None
+                        )
+                        await user_manager.unban_user(
+                            user=user,
+                            history_entry=history_entry,
+                            notification_type=notification_type,
+                            generate_new_invites=False,
+                        )
         # User has changed wallet with insufficient balance
         elif not is_new_user:
             if user.wallet != wallet:
@@ -234,3 +246,5 @@ async def main_menu_window(
             e.method,
             e.message,
         )
+    except Exception as e:
+        logging.exception("Exception in main_menu_window(): %s", e)

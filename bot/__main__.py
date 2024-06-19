@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import traceback
 from aiogram import Dispatcher
 from aiogram.exceptions import (
     TelegramAPIError,
@@ -28,7 +27,7 @@ def exception_handler(loop, context):
     exception = context["exception"]
     if exception.__class__.__name__ != "IncompleteReadError":
         logging.exception(
-            f"Exception {exception.__class__.__name__} msg={exception} tb={traceback.format_exc()}"
+            "Exception %s msg=%s", exception.__class__.__name__, exception
         )
 
 
