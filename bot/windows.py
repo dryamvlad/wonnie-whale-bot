@@ -76,7 +76,7 @@ async def main_menu_window(
 
         price = await dedust_helper.get_jetton_price(settings.WON_ADDR)
 
-        invite_link_name = f"{user_chat.first_name} {user_chat.last_name if user_chat.last_name else ''}"
+        invite_link_name = f"{user_chat.first_name} {user_chat.last_name or ''}"
         username = user_chat.username if user_chat.username else invite_link_name
 
         wallet = Address(account_wallet.address.hex_address).to_str()
@@ -84,6 +84,14 @@ async def main_menu_window(
         won_lp_balance = await ton_api_helper.get_jetton_balance(
             wallet, settings.WON_LP_ADDR
         )
+
+        if won_balance < 0 or won_lp_balance < 0:
+            await bot.send_message(
+                chat_id=user_chat.id,
+                text="Ошибка получения баланса. Попробуйте переподключиться.",
+            )
+            return
+
         won_balance = won_balance + won_lp_balance
 
         existing_member = await bot.get_chat_member(
@@ -125,7 +133,7 @@ async def main_menu_window(
             )
             is_new_user = True
 
-        await admin_notifier.notify_admin(type="connect", user=user)
+        await admin_notifier.notify_admin(type_="connect", user=user)
 
         if user.og:
             threshold_balance = settings.OG_THRESHOLD_BALANCE
@@ -183,8 +191,8 @@ async def main_menu_window(
 
                     await user_manager.revoke_user_invite_links(user)
                     logging.error("UNBAN in windows.py: %s", user.username)
-                    user.invite_link = invite_link.invite_link
-                    user.channel_invite_link = channel_invite_link.invite_link
+                    user.invite_link = invite_link.invite_link or None
+                    user.channel_invite_link = channel_invite_link.invite_link or None
                     await user_manager.unban_user(
                         user=user,
                         history_entry=history_entry,

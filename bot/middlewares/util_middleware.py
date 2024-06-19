@@ -1,21 +1,20 @@
 import asyncio
 import logging
+from typing import Any, Awaitable, Callable, Dict
+
 from aiogram import BaseMiddleware, Bot
-from aiogram.types import TelegramObject, Chat
+from aiogram.types import TelegramObject
 from aiogram.utils import markdown
-from typing import Callable, Dict, Any, Awaitable, Union
-
-from bot.db.schemas.schema_users import UserSchema
-from bot.db.utils.unitofwork import UnitOfWork
-from bot.config import Settings
-
+from dedust import Asset, Factory, PoolType
 from pytonapi import Tonapi
-from pytoniq_core import Address
+from pytonapi.exceptions import TONAPIError
 from pytoniq import LiteBalancer
 from pytoniq.liteclient import LiteServerError
+from pytoniq_core import Address
 
-from dedust import Asset, Factory, PoolType
-
+from bot.config import Settings
+from bot.db.schemas.schema_users import UserSchema
+from bot.db.utils.unitofwork import UnitOfWork
 from bot.utils.user_manager import UserManager
 
 
@@ -24,7 +23,11 @@ class TonApiHelper:
         self.ton_api = ton_api
 
     async def get_jetton_balance(self, wallet: str, jetton_addr: str) -> int:
-        jettons_balances = self.ton_api.accounts.get_jettons_balances(wallet)
+        try:
+            jettons_balances = self.ton_api.accounts.get_jettons_balances(wallet)
+        except TONAPIError:
+            logging.error("TONAPIError get_jettons_balances()")
+            return -1
 
         for balance in jettons_balances.balances:
             curr_jetton_addr = Address(balance.jetton.address()).to_str()
@@ -69,14 +72,17 @@ class AdminNotifier:
         self.bot = bot
         self.settings = settings
 
-    async def notify_admin(self, type: str, user: UserSchema, sum: int = None):
+    async def notify_admin(self, type_: str, user: UserSchema, sum_: int = None):
+        if user.tg_user_id == 123671021:
+            return
+
         bool_switch = {
             True: "➕",
             False: "➖",
         }
-        sum_str = f"Сумма: {sum} WON" if type in ["buy", "sell"] else ""
+        sum_str = f"Сумма: {sum_} WON" if type_ in ["buy", "sell"] else ""
         admin_message = (
-            f"{self.types[type]} \n\n"
+            f"{self.types[type_]} \n\n"
             f"C пресейла: {bool_switch[user.og]}\n"
             f"В ЧС: {bool_switch[user.blacklisted]}\n"
             f"Пользователь: @{user.username}\n"

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import traceback
 from aiogram import Dispatcher
 from aiogram.exceptions import (
     TelegramAPIError,
@@ -25,9 +26,10 @@ def exception_handler(loop, context):
     if "exception" not in context:
         return
     exception = context["exception"]
-    message = context["message"]
     if exception.__class__.__name__ != "IncompleteReadError":
-        logging.error(f"Exception {exception.__class__.__name__} msg={exception}")
+        logging.exception(
+            f"Exception {exception.__class__.__name__} msg={exception} tb={traceback.format_exc()}"
+        )
 
 
 async def start_bot():
@@ -66,7 +68,7 @@ async def main():
 
 if __name__ == "__main__" or __name__ == "bot.__main__":
     loop = asyncio.new_event_loop()
-    # loop.set_exception_handler(exception_handler)
+    loop.set_exception_handler(exception_handler)
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(main())
@@ -76,7 +78,10 @@ if __name__ == "__main__" or __name__ == "bot.__main__":
         pass
     except TelegramAPIError as e:
         logging.error(
-            f"TelegramAPIError:{e.method.__class__.__name__}({e.method}) — {e.message}"
+            "TelegramAPIError:%s(%s) — %s",
+            e.method.__class__.__name__,
+            e.method,
+            e.message,
         )
     except asyncio.exceptions.TimeoutError as e:
         logging.error("TimeoutError")

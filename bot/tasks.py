@@ -60,6 +60,9 @@ async def task_update_users():
                 user.wallet, settings.WON_ADDR
             )
 
+            if won_balance < 0 or won_lp_balance < 0:
+                continue
+
             won_balance += won_lp_balance
             balance_delta = won_balance - user.balance
 
@@ -115,7 +118,7 @@ async def task_update_users():
                 buy_sell = "buy" if balance_delta > 0 else "sell"
                 user.balance = won_balance
                 await admin_notifier.notify_admin(
-                    type=buy_sell, user=user, sum=balance_delta
+                    type_=buy_sell, user=user, sum_=balance_delta
                 )
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
@@ -133,7 +136,7 @@ async def task_update_users():
     except LiteServerError:
         pass
     except TONAPIError:
-        logging.error("TONAPIError")
+        logging.error("TONAPIError in task_update_users()")
     except TimeoutError:
         logging.error("TimeoutError")
     except TelegramAPIError as e:
@@ -144,4 +147,4 @@ async def task_update_users():
             e.message,
         )
     except Exception as e:
-        logging.error("Exception in task_update_users(): %s", e)
+        logging.exception("Exception in task_update_users(): %s", e)
