@@ -10,7 +10,7 @@
       "request": "launch",
       "program": "debug_bot.py",
       "console": "integratedTerminal",
-      // "args": ["dev_environment"],
+      "args": ["dev_environment"],
       "justMyCode": false
     }
   ]

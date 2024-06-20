@@ -67,7 +67,7 @@ async def main():
 
 if __name__ == "__main__" or __name__ == "bot.__main__":
     loop = asyncio.new_event_loop()
-    loop.set_exception_handler(exception_handler)
+    # loop.set_exception_handler(exception_handler)
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(main())
