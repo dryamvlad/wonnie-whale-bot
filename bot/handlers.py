@@ -37,6 +37,7 @@ async def start_command(message: Message, atc_manager: ATCManager) -> None:
     )
     # Open the connect wallet window using the ATCManager instance
     # and the specified callbacks
+    await atc_manager.update_interfaces_language("ru")
     await atc_manager.connect_wallet(callbacks, check_proof=True)
 
 

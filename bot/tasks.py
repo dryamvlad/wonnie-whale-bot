@@ -120,12 +120,8 @@ async def task_update_users():
                 await UsersService().edit_user(
                     uow=uow, user_id=user.id, user=user, history_entry=history_entry
                 )
-            # user is not banned/blacklisted and has enough balance? revoke old invite links
-            elif (
-                not user.banned
-                and not user.blacklisted
-                and won_balance >= threshold_balance
-            ):
+            # user is not banned and has enough balance? revoke old invite links
+            elif not user.banned and won_balance >= threshold_balance:
                 await user_manager.revoke_old_user_invite_links(user)
 
             counter = counter + 1

@@ -45,6 +45,7 @@ class UserManager:
 
     async def revoke_old_user_invite_links(self, user: UserSchema) -> UserSchema:
         """Revokes the invite links for a user if the user is already in the chat/channel."""
+        modified = False
         if user.invite_link:
             existing_member = await self.bot.get_chat_member(
                 chat_id=settings.CHAT_ID, user_id=user.tg_user_id
@@ -54,6 +55,7 @@ class UserManager:
                     settings.CHAT_ID, user.invite_link
                 )
                 user.invite_link = None
+                modified = True
 
         if user.channel_invite_link:
             existing_member = await self.bot.get_chat_member(
@@ -64,19 +66,21 @@ class UserManager:
                     settings.CHANNEL_ID, user.channel_invite_link
                 )
                 user.channel_invite_link = None
-
-        await UsersService().edit_user(uow=self.uow, user_id=user.id, user=user)
+                modified = True
+        if modified:
+            await UsersService().edit_user(uow=self.uow, user_id=user.id, user=user)
+        return user
 
     async def revoke_user_invite_links(self, user: UserSchema) -> UserSchema:
         """Revokes the invite links for a user if they exist."""
         if user.invite_link:
             await self.bot.revoke_chat_invite_link(settings.CHAT_ID, user.invite_link)
+            user.invite_link = None
         if user.channel_invite_link:
             await self.bot.revoke_chat_invite_link(
                 settings.CHANNEL_ID, user.channel_invite_link
             )
-        user.invite_link = None
-        user.channel_invite_link = None
+            user.channel_invite_link = None
         return user
 
     async def unban_user(
