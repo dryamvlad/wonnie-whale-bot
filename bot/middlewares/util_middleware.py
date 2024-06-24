@@ -123,6 +123,7 @@ class DeDustHelper:
                 continue
             except Exception:
                 logging.error("DeDust: 0 price")
+                await self.provider.close_all()
                 return 0
 
 
