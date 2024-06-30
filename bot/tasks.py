@@ -125,8 +125,8 @@ async def task_update_users():
                 await user_manager.revoke_old_user_invite_links(user)
 
             counter = counter + 1
-            #if counter % 99 == 0:
-            await asyncio.sleep(1)  # to avoid TonApi rate limit
+            if counter % 99 == 0:
+                await asyncio.sleep(1)  # to avoid TonApi rate limit
     except LiteServerError:
         pass
     except TONAPIError:
